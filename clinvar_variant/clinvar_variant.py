@@ -25,7 +25,7 @@ log_path = pjoin(clinvar_variant_model,'clinvar_variant.log')
 # main code
 def downloadData(redownload = False):
     '''
-    this function is to download the raw data from go gene FTP WebSite
+    this function is to download the raw data from go clinvar FTP WebSite
     args:
     redownload-- default False, check to see if exists an old edition before download
                        -- if set to true, download directly with no check
@@ -112,8 +112,6 @@ def updateData(insert=False,_mongodb='../_mongodb/'):
             json.dump(clinvar_variant_log,wf,indent=2)
 
         print  '{} \'s new edition is {} '.format('clinvar_variant',mt)
-        
-        bakeupCol('clinvar_variant_{}'.format(version),'clinvar_variant',_mongodb)
         
     else:
 

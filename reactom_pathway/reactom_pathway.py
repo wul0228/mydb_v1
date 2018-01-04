@@ -52,20 +52,18 @@ def downloadData(redownload = False,rawdir = None):
         # get mt for every file,store in reactomfile_mt
         newest_mt = process.getMt()
 
-        pathurl_mt,summary_mt = process.getUrl()
+        pathurl_mt,other_mt = process.getUrl() 
 
         # download graph file
         func  = lambda x:process.wget(x,pathurl_mt[x],rawdir)
 
         multiProcess(func,pathurl_mt.keys(),size=50)
 
-        # download summary file
-        for url,mt in summary_mt.items():
-
+        # download other file
+        for url,mt in other_mt.items():
             process.wget(url,mt,rawdir)
 
     # create log file
-
     if not os.path.exists(log_path):
 
         with open('./reactom_pathway.log','w') as wf:
@@ -85,50 +83,70 @@ def extractData(filepaths,date):
 
     process = reactom_parser(date)
 
-    graphpaths = [filepath for filepath in filepaths if  filepath.endswith('.graph.json') ]
+    graphpaths,jsonpaths,infopaths,subpathwaypaths,genepaths,interactionpaths = [],[],[],[],[],[]
 
-    jsonpaths = [filepath for filepath in filepaths if not filepath.endswith('graph.json') and filepath.endswith('.json') ]
+    for filepath in filepaths:
 
-    sumpaths = [filepath for filepath in filepaths if filepath.endswith('.txt')]
+        filename = psplit(filepath)[1].strip()
 
-    print len(graphpaths)
-    print len(jsonpaths)
-    print len(sumpaths)
+        if filename.endswith('.graph.json'):
+            graphpaths.append(filepath)
 
-    # # reactom.pathway.info (pathway2summation and reactompathway)
-    # process.info(sumpaths,fileversion)
+        elif filename.endswith('.json'):
+            jsonpaths.append(filepath)
+
+        elif filename.startswith('ReactomPathways_') or filename.startswith('pathway2summation_'):
+            infopaths.append(filepath)
+
+        elif filename.startswith('ReactomePathwaysRelation_'):
+            subpathwaypaths.append(filepath)
+
+        elif filename.startswith('NCBI2Reactome_All_Levels_'):
+            genepaths.append(filepath)
+
+        elif filename.startswith('FIsInGene_'):
+            interactionpaths.append(filepath)
+
+    # reactom.pathway.info (pathway2summation and reactompathway)
+    all_paths =process.info(infopaths,fileversion)
 
     # reactom.pathway.entry
-    # all_nodes = process.entry(graphpaths,fileversion)
+    all_nodes = process.entry(graphpaths,fileversion)
 
     # reactom.pathway.reaction
-    # all_events = process.event(graphpaths,fileversion)
+    all_events = process.event(graphpaths,fileversion)
 
     # add subpathway to entry and reaction
-    process.subpathway(graphpaths,fileversion)
+    process.pathsub(graphpaths,fileversion,all_paths,all_nodes,all_events)
 
-    # deal json file 
-    # for jsonpath in jsonpaths:
-    #     process.graph(jsonpath,fileversion)
-    
-    # func = lambda x : process.graph(x)
-    # multiProcess(func,jsonpaths,size=20)
+    # add reactom.pathway.subpathway 
+    process.subpathway(subpathwaypaths,fileversion)
 
-    # _mongodb = pjoin(reactom_pathway_db,rawdirname)
+    # add reactom.pathway.subpathway 
+    process.gene(genepaths,fileversion)
 
-    # colhead = 'reactom.pathway'
+    # add reactom.pathway.interaction 
+    process.interaction(interactionpaths,fileversion)
 
-    # bkup_allCols('mydb_v1',colhead,_mongodb)
+    # add reactom.pathway.graph 
+    process.graph(jsonpaths,fileversion)
 
-    # print 'extract and insert completed'
+    # bkup collection in local
+    _mongodb = pjoin(reactom_pathway_db,rawdirname)
 
-    # return (filepaths,version)
+    colhead = 'reactom.pathway'
+
+    bkup_allCols('mydb_v1',colhead,_mongodb)
+
+    print 'extract and insert completed'
+
+    return (filepaths,date)
 
 def updateData(insert=False,_mongodb='../_mongodb/'):
 
     reactom_pathway_log = json.load(open(log_path))
 
-    rawdir = pjoin(reactom_pathway_raw,'pathway_update_{}'.format(today))
+    rawdir = pjoin(reactom_pathway_raw,'pathway_{}'.format(today))
 
     process = reactom_parser(today)
 
@@ -267,10 +285,6 @@ class reactom_parser(object):
 
         db = conn.get_database('mydb_v1')
 
-        # colname = 'reactom_pathway_{}'.format(version)
-
-        # col = db.get_collection(colname)
-
         self.db = db
         
         self.date = date
@@ -313,45 +327,57 @@ class reactom_parser(object):
         # diagram file
         # for url in [reactome_download_web1,reactome_download_web2]:
 
-        info_files = ['pathway2summation','ReactomePathways']
-
         pathurl_mt = dict()
 
-        summary_mt = dict()
+        other_mt = dict()
+        #------------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # download R-HSA-?????.graph.json or  # download R-HSA-?????.json
+        web = requests.get(reactome_download_web1)
+        soup = bs(web.content,'lxml')
+        trs = soup.select('body > table > tr ')
 
-        for url in [reactome_download_web1,reactome_download_web2]:
-        # for url in [reactome_download_web1]:#,reactome_download_web2]:
-            
-            web = requests.get(url)
+        for tr in trs:
+            text = tr.text
+            filename = text.split('.json')[0].strip()
 
-            soup = bs(web.content,'lxml')
+            # if filename.startswith('R-HSA') and filename.endswith('.graph'):
+            if filename.startswith('R-HSA'):
 
-            trs = soup.select('body > table > tr ')
+                mt = self.Mt(text,filename)
+                key = reactome_download_web1 + filename + '.json'
+                pathurl_mt[key] = mt
+        #------------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # download pathway2summation,ReactomePathways,NCBI2Reactome_All_Levels,ReactomePathwaysRelation
+        info_files = ['pathway2summation','ReactomePathways','NCBI2Reactome_All_Levels','ReactomePathwaysRelation']
 
-            for tr in trs:
+        web = requests.get(reactome_download_web2)
+        soup = bs(web.content,'lxml')
+        trs = soup.select('body > table > tr ')
 
-                text = tr.text
+        for tr in trs:
+            text = tr.text
+            filename = text.split('.txt')[0].strip()
 
-                filename = text.split('.json')[0].strip()
+            if filename in info_files:
 
-                # if filename.startswith('R-HSA') and filename.endswith('.graph'):
-                if filename.startswith('R-HSA'):
+                mt = self.Mt(text,filename)
 
-                    mt = self.Mt(text,filename)
+                key = reactome_download_web2 + filename + '.txt'
 
-                    key = url + filename + '.json'
+                other_mt[key] = mt 
+        #------------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # download interaction file 
+        web = requests.get(reactome_download_web3)
+        soup = bs(web.content,'lxml')
+        head = soup.find(text='Functional interactions (FIs) derived from Reactome, and other pathway and interaction databases')
+        li1 = head.findNext(name = 'li')
+        mt = li1.text.split('Version')[1].strip()
+        a = li1.find(name='a')
+        href = a.attrs.get('href')
+        other_mt[href] = mt
 
-                    pathurl_mt[key] = mt
 
-                elif filename.split('.txt')[0].strip() in info_files:
-
-                    mt = self.Mt(text,'pathway2summation.txt')
-
-                    key = url + 'pathway2summation.txt'
-
-                    summary_mt[key] = mt
-
-        return (pathurl_mt,summary_mt)
+        return (pathurl_mt,other_mt)
 
     def wget(self,url,mt,rawdir):
 
@@ -376,11 +402,75 @@ class reactom_parser(object):
 
             savename = '{}_{}.json'.format(name,mt)
 
+        elif filename.endswith('.txt.zip'):
+
+            name = filename.split('.txt.zip')[0].strip()
+
+            savename = '{}_{}.txt.zip'.format(name,mt)
+
         storefilepath = pjoin(rawdir,savename)
 
         command = 'wget -O {} {}'.format(storefilepath,url)
 
         os.popen(command)
+
+    def node(self,dbId):
+
+        node_info = dict()
+
+        url = 'https://reactome.org/content/detail/%s' % dbId
+
+        headers = {'User-Agent':'ozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Ubuntu Chromium/37.0.2062.120 Chrome/37.0.2062.120 Safari/537.36'}
+
+        web = requests.get(url,headers=headers,verify= False)
+
+        soup = bs(web.content,'lxml')
+
+        displayname = soup.find(name='h3')
+
+        if displayname:
+            displayname = displayname.text.strip()
+        else:
+            return
+
+        st_id_val,ty_val,com_val,syn_val,speciesID =('','','','','')
+
+        st_id = soup.find(text='Stable Identifier')
+        if st_id:
+            st_id_val = st_id.findNext(name='div').text.strip()    
+
+        ty = soup.find(text='Type')
+        if ty:
+            ty_val = ty.findNext(name='div').text.strip()
+
+        com = soup.find(text='Compartment')
+        if com:
+            com_val = com.findNext(name='a').text.strip()    
+            displayname = displayname + ' ' + '[' + com_val + ']'
+
+        spe = soup.find(text='Species')
+        if spe:
+            spe_val = spe.findNext(name='div').text.strip()        
+            if spe_val == 'Homo sapiens':
+                speciesID = 48887
+
+        syn = soup.find(text='Synonyms')
+        if syn:
+            syn_val =';'.join( [i.strip() for i in syn.findNext(name='div').text.strip().split(',') if i])
+        
+        entry_link = 'https://reactome.org/content/detail/%s' % st_id_val
+
+        node_info.update(
+            {
+            'dbId':dbId,
+           'entry_id':st_id_val,
+           'entry_link':entry_link,
+           'schemaClass':ty_val,
+           'speciesID':speciesID,
+           'displayname':displayname,
+           })
+
+        return node_info
 
     def info(self,filepaths,fileversion):
 
@@ -390,7 +480,7 @@ class reactom_parser(object):
 
         info_col = self.db.get_collection(info_colname)
 
-        path_ids = list()
+        all_paths = list()
 
         for filepath in filepaths:
 
@@ -400,7 +490,7 @@ class reactom_parser(object):
 
             fileversion = filename.rsplit('_',1)[1].strip().split('.',1)[0].strip()
 
-            if not info_col.find({'dataVersion':fileversion}):
+            if not info_col.find_one({'dataVersion':fileversion}):
 
                 info_col.insert({'dataVersion':fileversion,'dataDate':self.date,'colCreated':today,'file':'ReactomPathways,pathway2summation,R-HSA-??????.graph'})
 
@@ -425,8 +515,8 @@ class reactom_parser(object):
 
                 path_id = dic.pop('path_id')
 
-                if path_id not in path_ids:
-                    path_ids.append(path_id)
+                if path_id not in all_paths:
+                    all_paths.append(path_id)
 
                 dic['path_link'] = 'https://reactome.org/content/detail/{}'.format(path_id)
 
@@ -441,10 +531,10 @@ class reactom_parser(object):
 
                 print 'reactom.pathway.info',n,path_id
 
-        with open('./all_reactom_paths.json','w') as wf:
-            json.dump(path_ids,wf,indent=8)
+        # with open('./all_reactom_paths.json','w') as wf:
+        #     json.dump(all_paths,wf,indent=8)
 
-        return path_ids
+        return all_paths
 
     def entry(self,filepaths,fileversion):
 
@@ -474,40 +564,31 @@ class reactom_parser(object):
 
             for node in nodes:
 
-                node_id = node.get('stId')
-
-                children = node.get('children')
-
-                if children:
-                    node['children'] = ['R-HSA-{}'.format(i) for i in children]
-
-                parents = node.get('parents')
-
-                if parents:
-                    node['parents'] = ['R-HSA-{}'.format(i) for i in parents]
-
-
                 node['path_id'] = path_id
+                node['path_org'] = 'Homo sapiens'
 
-                node.pop('dbId')
+                node_dbid = node.get('dbId')
 
-                node['entry_id'] = node.pop('stId')
+                node_id = node.pop('stId')
+
+                node['entry_id'] = node_id
+                node['entry_link'] = 'https://reactome.org/content/detail/%s' % node_id
 
                 entry_col.insert(node)
 
                 # add to all nodes
-                if node_id not in all_nodes:
+                if node_dbid not in all_nodes:
 
                     node.pop('_id')
 
-                    all_nodes[node_id] = node
+                    all_nodes[node_dbid] = node
 
             n += 1
 
             print 'reactom.pathway.entry file',n
 
-        with open('./all_reactom_nodes.json','w') as wf:
-            json.dump(all_nodes,wf,indent=8)
+        # with open('./all_reactom_nodes.json','w') as wf:
+        #     json.dump(all_nodes,wf,indent=8)
 
         return all_nodes
 
@@ -543,46 +624,45 @@ class reactom_parser(object):
 
                 for e in edges:
 
-                    dbId = e.pop('dbId')
+                    dbId = e.get('dbId')
                     
                     event_id = e.pop('stId')
 
                     e['path_id'] = path_id
+                    e['path_org'] = 'Homo sapiens'
 
                     e['event_id'] = event_id
 
-                    for key in ['inputs','outputs','activators','catalysts','inhibitors','following','preceding']:
-
-                        val = e.get(key)
-
-                        if val:
-                            e[key]  = ['R-HSA-{}'.format(i) for i in  val]
+                    e['event_link'] = 'https://reactome.org/content/detail/%s' % event_id
 
                     event_col.insert(e)
 
                     e.pop('_id')
 
-                    if event_id not in all_events:
-                        all_events[event_id] = e
+                    if dbId not in all_events:
 
-        with open('./all_reactom_events.json','w') as wf:
-            json.dump(all_events,wf,indent=8)
+                        all_events[dbId] = e
+
+            n += 1
+
+            print 'reactom.pathway.event',n
+
+        # with open('./all_reactom_events.json','w') as wf:
+        #     json.dump(all_events,wf,indent=8)
 
         return all_events
 
-    def subpathway(self,filepaths,fileversion):
+    def pathsub(self,filepaths,fileversion,all_paths,all_nodes,all_events):
+
+        info_col = self.db.get_collection('reactom.pathway.info')
 
         entry_col = self.db.get_collection('reactom.pathway.entry')
 
         event_col = self.db.get_collection('reactom.pathway.event')
 
-        all_paths = json.load(open('./all_reactom_paths.json'))
-
-        all_nodes = json.load(open('./all_reactom_nodes.json'))
-
-        all_events = json.load(open('./all_reactom_events.json'))
-
         n = 0
+
+        notin_all_nodes = list()
 
         for filepath in filepaths:
             
@@ -592,7 +672,7 @@ class reactom_parser(object):
 
             fileversion = filename.rsplit('_',1)[1].strip().split('.',1)[0].strip()
 
-            path_id = jsonfile.get('path_id')
+            path_id = jsonfile.get('stId')
 
             subpathways = jsonfile.get('subpathways')
 
@@ -601,6 +681,13 @@ class reactom_parser(object):
                 for subpathway in subpathways:
 
                     subpath_id = subpathway.get('stId') # all subpathway id included in pathway.info
+                    print 'subpath_id',subpath_id
+
+                    info_col.update(
+                        {'path_id':path_id},
+                        {'$push':{'path_sub':subpath_id}},
+                        True,
+                        )
 
                     subpath_events = subpathway.get('events')
 
@@ -608,265 +695,268 @@ class reactom_parser(object):
 
                         for event_id in subpath_events:
 
-                            event_id = 'R-HSA-{}'.format(event_id)
-
                             event_info  = all_events.get(event_id)
 
                             if event_info:
-                                # bcause subpath also contain this event .so add to pathway.envent
-                                event_info['path_id'] = subpath_id
-                                # envent_col.insert(event_info)
+
+                                # bcause subpath also contain this event .so add to pathway.event
+
+                                # if not event_col.find_one({'path_id':subpath_id,'event_id':event_id}):
+                                [event_info.pop(key) for key  in ['_id','path_id','event_id'] if key in event_info]
+
+                                event_col.update(
+                                    {'path_id':subpath_id,'event_id':event_id},
+                                    {'$set':event_info},
+                                    True,
+                                    False)
 
                                 # bcause subpath also contain this event  and it's nodes .so add to pathway.nodes
-                                envent_nodes = list()
+                                event_nodes = list()
 
                                 for key in ['inputs','outputs','activators','catalysts','inhibitors']:
                                     val = event_info.get(key,[])
-                                    envent_nodes += val
+                                    event_nodes += val
 
-                                envent_nodes = list(set(envent_nodes))
+                                event_nodes = list(set(event_nodes))
 
-                                for node_id in envent_nodes:
+                                for node_id in event_nodes:
+
                                     node_info = all_nodes.get(node_id)
 
-                                    if node_info:
-                                        node_info['path_id'] = subpath_id
-                                    else:
-                                        print 'event_id',event_id,'    ',node_id,'is not in all_nodes'
-                                    # entry_col.insert(event_info)
-                                # print subpath_id,envent_nodes
+                                    if not node_info:
+                                        node_info = self.node(node_id)
+                                        notin_all_nodes.append(node_id)
+
+                                    [node_info.pop(key) for key  in ['_id','path_id','node_id'] if key in node_info]
+
+                                    entry_col.update(
+                                        {'path_id':subpath_id,'node_info':node_id},
+                                        {'$set':node_info},
+                                        True,
+                                        False)
 
                             else:
-
-                                print event_id,'not in all_event'
-                                # event is is not represent event but a pathway
-
+                                event_id = 'R-HSA-{}'.format(event_id)
                                 path_id = event_id
 
                                 docs = event_col.find({'path_id':path_id})
 
                                 if docs:
 
+                                    print event_id,'not in all_event but in path_id'
+                                    # event is is not represent event but a pathway
                                     event = list()
 
                                     for doc in docs:
                                         
                                         doc.pop('_id')
-                                        envent_info = doc
-                                        envent_info['path_id'] =  subpath_id
-                                        # envent_col.insert(event_info)
+                                        event_info = copy.deepcopy(doc)
+                                        event_id = event_info.get('event_id')
 
-                                        envent_nodes = list()
+                                        [event_info.pop(key) for key  in ['_id','path_id','event_id'] if key in event_info]
+
+                                        event_col.update(
+                                            {'path_id':subpath_id,'event_id':event_id},
+                                            {'$set':event_info},
+                                            True,
+                                            False)
+
+                                        event_nodes = list()
 
                                         for key in ['inputs','outputs','activators','catalysts','inhibitors']:
                                             val = event_info.get(key,[])
-                                            envent_nodes += val
+                                            event_nodes += val
 
-                                        envent_nodes = list(set(envent_nodes))
+                                        event_nodes = list(set(event_nodes))
 
-                                        for node_id in envent_nodes:
+                                        for node_id in event_nodes:
+
                                             node_info = all_nodes.get(node_id)
-                                            node_info['path_id'] = subpath_id
-                                            # entry_col.insert(event_info)
+
+                                            if not node_info:
+                                                node_info = self.node(node_id)
+                                                notin_all_nodes.append(node_id)
+                                            [node_info.pop(key) for key  in ['_id','path_id','node_id'] if key in node_info]
+
+                                            entry_col.update(
+                                                {'path_id':subpath_id,'node_info':node_id},
+                                                {'$set':node_info},
+                                                True,
+                                                False)
 
                                 else:
-
                                     print path_id,'not in path_id'
-                            print 
 
-    def graph(self,filepath,fileversion):
+            n += 1
+            print 'reactom.pathway.subpathway',n
 
-        #--------------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # notin_all_nodes = list(set(notin_all_nodes))
+        # print notin_all_nodes
+        # print len(notin_all_nodes)
 
-        entry_colname = 'reactom.pathway.entry'
+        # with open('./notin_all_nodes.json','w') as wf:
+        #     json.dump(notin_all_nodes,wf,indent=2)
 
-        delCol('mydb_v1',colname)
+    def subpathway(self,filepaths,fileversion):
 
-        entry_col = self.db.get_collection(entry_colname)
-        
-        entry_col.insert({'dataVersion':fileversion,'dataDate':self.date,'colCreated':today,'file':'R-HSA-??????.graph'})
-        #--------------------------------------------------------------------------------------------------------------------------------------------------------------------
+        subpathway_colname = 'reactom.pathway.subpathway'
 
-        dic = json.load(open(filepath))
+        delCol('mydb_v1',subpathway_colname)
 
-        # delete origin nodes list
-        nodes = dic.pop('nodes')
+        subpathway_col = self.db.get_collection(subpathway_colname)
 
-        # create new nodes dict
-        nodeinfo = dict()
+        subpathway_col.insert({'dataVersion':fileversion,'dataDate':self.date,'colCreated':today,'file':'ReactomePathwaysRelation'})
 
-        for node in nodes:
+        filepath = filepaths[0] # only one file
 
-            schemaClass = node.pop('schemaClass')
-
-            if not schemaClass:
-
-                schemaClass = 'Other'
-
-
-            dbId = node.pop('dbId')
-
-            if schemaClass not in nodeinfo:
-
-                nodeinfo[schemaClass] = dict()
-
-            if dbId not in nodeinfo[schemaClass]:
-
-                nodeinfo[schemaClass][str(dbId)] = node
-
-        dic.update({'nodes':nodeinfo})
-
-        # with open(pjoin(storedir,filename) ,'w') as wf:
-        #     json.dump(dic,wf,indent=2)
-
-        col.insert(dic)
-        # pprint.pprint(dic)
-    
-    def sum(self,filepath,fileversion):
-        #--------------------------------------------------------------------------------------------------------------------------------------------------------------------
-        info_colname = 'reactom.pathway.info'
-
-        delCol('mydb_v1',info_colname)
-
-        info_col = self.db.get_collection(info_colname)
-        
-        info_col.insert({'dataVersion':fileversion,'dataDate':self.date,'colCreated':today,'file':'R-HSA-??????.graph,pathway2summation'})
-        
         tsvfile = open(filepath)
 
-        keys = ['stId','name','summation']
+        n = 0
 
         for line in tsvfile:
 
-            if line.startswith('#'):
-                continue
+            data = [i.strip() for i in line.split('\t')]
 
-            data =[i.strip() for i in  line.strip().split('\t') if i]
+            parent_path  = data[0]
+
+            child_path = data[1]
+
+            if parent_path.startswith('R-HSA') and child_path.startswith('R-HSA'):
+
+                subpathway_col.insert(
+                    {'parent_path':parent_path,
+                    'child_path':child_path,
+                    'path_org':'Homo sapiens'})
+
+            n += 1
+
+            print 'reactom.pathway.subpathway line',n
+
+    def gene(self,filepaths,fileversion):
+
+        gene_colname = 'reactom.pathway.gene'
+
+        delCol('mydb_v1',gene_colname)
+
+        gene_col = self.db.get_collection(gene_colname)
+
+        gene_col.insert({'dataVersion':fileversion,'dataDate':self.date,'colCreated':today,'file':'NCBI2Reactome_All_Levels'})
+
+        filepath = filepaths[0] # only one file
+
+        tsvfile = open(filepath)
+
+        n = 0
+
+        keys = ['entrez_id','path_id','path_link','path_name','evidence','path_org']
+
+        for line in tsvfile:
+
+            data = [i.strip() for i in line.split('\t')]
 
             dic = dict([(key,val) for key,val in zip(keys,data)])
 
-            stId = dic.get('stId')
+            path_org = dic.get('path_org')
 
-            stId_link = 'https://reactome.org/content/detail/{}'.format(stId)
+            if path_org != 'Homo sapiens':
+                continue
 
-            dic['stId_link'] = stId_link
+            for key in ['path_link','path_name']:
+                dic.pop(key)
 
-            summation = dic['summation'].decode('unicode_escape').encode('utf8')
+            gene_col.insert(dic)
 
-            dic['summation'] = summation
+            n += 1
+            print 'reactom.pathway.gene line',n
 
-            info_col.insert(dic)
+
+    def interaction(self,filepaths,fileversion):
+
+        interaction_colname = 'reactom.pathway.interaction'
+
+        delCol('mydb_v1',interaction_colname)
+
+        interaction_col = self.db.get_collection(interaction_colname)
+
+        interaction_col.insert({'dataVersion':fileversion,'dataDate':self.date,'colCreated':today,'file':'IsInGene_022717_with_annotations'})
+
+        filepath = filepaths[0] # only one file
+
+        rawdir = psplit(filepath)[0].strip()
+
+        if filepath.endswith('.zip'):
+
+            # gunzip zip file
+            unzip =  'unzip {} -d {}'.format(filepath,rawdir)
+
+            os.popen(unzip)
+
+            os.remove(filepath)
+
+        filepath = filepath.rsplit('.zip',1)[0].strip()
+
+        tsvfile = open(filepath)
+
+        n = 0
+
+        for line in tsvfile:
+
+            if n == 0:
+                keys = [i.strip() for i in line.strip().split('\t') ]
+
+            else:
+                data = [i.strip() for i in line.strip().split('\t') ]
+                dic = dict([(key,val) for key,val in zip(keys,data)])
+
+                interaction_col.insert(dic)
+
+                print 'reactom.pathway.interaction,line',n
+
+            n += 1
+
+    def graph(self,filepaths,fileversion):
+
+        graph_colname = 'reactom.pathway.graph'
+
+        delCol('mydb_v1',graph_colname)
+
+        graph_col = self.db.get_collection(graph_colname)
+
+        graph_col.insert({'dataVersion':fileversion,'dataDate':self.date,'colCreated':today,'file':'R-HSA-??????.json'})
+
+        n = 0
+
+        for filepath in filepaths:
+
+            jsonfile = json.load(open(filepath))
+
+            filename = psplit(filepath)[1].strip()
+
+            fileversion = filename.rsplit('_',1)[1].strip().split('.',1)[0].strip()
+
+            jsonfile['path_id'] = jsonfile.pop('stableId')
+            jsonfile['path_org'] = 'Homo sapiens'
+
+            graph_col.insert(jsonfile)
+
+            print 'reactom.pathway.graph line',n
 
 def main():
 
     modelhelp = model_help.replace('&'*6,'Reactom_Pathway').replace('#'*6,'reactom_pathway')
 
-    funcs = (downloadData,extractData,updateData,selectData,dbMap,reactom_pathway_store)
+    funcs = (downloadData,extractData,updateData,selectDaat,dbMap,reactom_pathway_store)
 
     getOpts(modelhelp,funcs=funcs)
         
 if __name__ == '__main__':
-    # main()
+    main()
     # filepaths,version = downloadData(redownload = True)
-    # pass
-    rawdir = '/home/user/project/dbproject/mydb_v1/reactom_pathway/dataraw/pathway_171229091519/'
-    filepaths = [pjoin(rawdir,filename) for filename in os.listdir(rawdir)]
-    extractData(filepaths,version)
+    # rawdir = '/home/user/project/dbproject/mydb_v1/reactom_pathway/dataraw/pathway_171229091519/'
+    # filepaths = [pjoin(rawdir,filename) for filename in os.listdir(rawdir)]
+    # date = '171229091519'
+    # extractData(filepaths,date)
+    # updateData()
+    pass
     # man = dbMap('171207120739')
     # man.mapping()
-
-    # rawdir = '/home/user/project/dbproject/mydb_v1/reactom_pathway/dataraw/pathway_171229091519/'
-    
-    # jsonfiles = [pjoin(rawdir,filename) for filename in os.listdir(rawdir) if filename.endswith('.json')]
-
-    # edge_type = list()
-    # node_type = list()
-    # json_keys = list()
-
-    # pathway_ids = list()
-
-    # subpathway_ids  = list()
-
-    # for jsonfile in jsonfiles:
-
-    #     dic = json.load(open(jsonfile))
-
-    #     for key in dic.keys():
-    #         if key not in json_keys:
-    #             json_keys.append(key)
-
-    #     json_keys = list(set(json_keys))
-    #     stId = dic.get('stId')
-
-    #     pathway_ids.append(stId)
-
-    #     subpathways = dic.get('subpathways')
-
-    #     if subpathways:
-
-    #         subpathway_id = [subpathway.get('stId') for subpathway in subpathways]
-
-    #         subpathway_ids += subpathway_id
-
-    # print 'len(pathway_ids)',len(pathway_ids)
-    # print 'len(subpathway_ids)',len(subpathway_ids)
-
-    # # print subpathway_ids
-    # pathway_ids = list(set(pathway_ids))
-    # subpathway_ids = list(set(subpathway_ids))
-
-    # print 'dedup len(pathway_ids)',len(pathway_ids)
-    # print 'dedup len(subpathway_ids)',len(subpathway_ids)
-
-
-    # _all = pathway_ids + subpathway_ids
-
-    # print '_all',len(_all)
-
-    # dedup_all = list(set(_all))
-
-
-    # print 'len(dedup_all)',len(dedup_all)
-
-    # with open('./all_reactom_pathwayID.json','w') as wf:
-    #     json.dump(dedup_all,wf,indent=8)
-
-    # print subpathway_ids
-
-    #     nodes = dic.get('nodes')
-
-    #     if nodes:
-
-    #         for n in nodes:
-
-    #             schemaClass = n.get('schemaClass')
-
-    #             if schemaClass not in node_type:
-
-    #                 node_type.append(schemaClass)
-
-    #     edges = dic.get('edges')
-
-    #     if edges:
-
-    #         for e in edges:
-
-    #             schemaClass = e.get('schemaClass')
-
-    #             if schemaClass not in edge_type:
-
-    #                 edge_type.append(schemaClass)
-
-
-    # print json_keys
-
-    # print len(json_keys)
-
-    # print edge_type
-
-    # print 'edge_type',len(edge_type)
-
-    # print node_type
-
-    # print 'node_type',len(node_type)
-

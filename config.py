@@ -34,6 +34,7 @@ now  = datetime.now().strftime('%y%m%d')
 
 today = datetime.now().strftime('%y%m%d%H%M%S')
 
+headers = {'User-Agent':'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Ubuntu Chromium/37.0.2062.120 Chrome/37.0.2062.120 Safari/537.36'}
 #~~~~~~~~~~~~~~~~~~~NCBI gene~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 ncbi_gene_ftp_infos = {
     'host' : 'ftp.ncbi.nlm.nih.gov' ,
@@ -48,7 +49,6 @@ ncbi_gene_expression_path = '/gene/DATA/expression/Mammalia/Homo_sapiens/'
 ncbi_refseq_ftp_path =  '/refseq/H_sapiens/RefSeqGene/'
 
 ncbi_gene_filenames = ['gene2refseq.gz','gene_group.gz','gene_neighbors.gz','gene2pubmed.gz','gene_info.gz'] #'
-
 
 #~~~~~~~~~~~~~~~~~~~Ensemble gene~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 ensembl_gene_ftp_infos = {
@@ -165,6 +165,7 @@ kegg_disease_web2 = 'http://www.genome.jp/kegg-bin/get_htext?br08401.keg'
 # }
 reactome_download_web1 = 'https://reactome.org/download/current/diagram/'
 reactome_download_web2 = 'https://reactome.org/download/current/'
+reactome_download_web3 = 'https://reactome.org/download-data/'
 #~~~~~~~~~~~~~~~~~~~wiki pathway~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 wiki_pathway_download = 'https://www.wikipathways.org/index.php/Download_Pathways'
@@ -179,6 +180,15 @@ clinVar_varient_ftp_infos = {
 
 clinVar_varient_filename = 'variant_summary.txt.gz'
 
+#~~~~~~~~~~~~~~~~~~~igsr varient~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+igsr_download_web = 'http://www.internationalgenome.org/data#download'
+
+igsr_variant_ftp_infos =  {
+'host' : 'ftp.1000genomes.ebi.ac.uk' ,
+'user':'anonymous',
+'passwd' : '',
+'logdir' : '/vol1/ftp/release/20130502/'
+}
 #~~~~~~~~~~~~~~~~~~~disgenet~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 disgenet_download_web = 'http://www.disgenet.org/web/DisGeNET/menu/downloads#gdascurated'
@@ -190,10 +200,8 @@ disgenet_download_url = 'http://www.disgenet.org/ds/DisGeNET/results/all_gene_di
 protein_atlas_download_web = 'https://www.proteinatlas.org/about/download'
 #~~~~~~~~~~~~~~~~~~~miRTarbase ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-
 miRTarbase_homepage = 'http://mirtarbase.mbc.nctu.edu.tw/'
 miRTarbase_download_web = 'http://mirtarbase.mbc.nctu.edu.tw/php/download.php'
-
 
 #~~~~~~~~~~~~~~~~~~~hpo phenotypic ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
@@ -212,8 +220,10 @@ hpo_download_urls = [
 
 trrust_homepage = 'http://www.grnpedia.org/trrust/'
 
+
 trrust_download_web ='http://www.grnpedia.org/trrust/downloadnetwork.php'
 
-#~~~~~~~~~~~~~~~~~~~ncbi refseq ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-
+#~~~~~~~~~~~~~~~~~~~dgidb drug ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+dgidb_web = 'http://dgidb.org'
+dgidb_api_web = 'http://dgidb.org/api#formats'
 
