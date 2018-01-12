@@ -324,54 +324,71 @@ class dbMap(object):
 
     #class introduction
 
-    def __init__(self,version):
+    def __init__(self):
 
-        conn = MongoClient('localhost',27017)
+        import commap
 
-        db = conn.get_database('mydb')
+        from commap import comMap
 
-        colname = 'go_gene_{}'.format(version)
+        (db,db_cols) = initDB('mydb_v1') 
 
-        col = db.get_collection(colname)
+        self.db = db
 
-        self.col = col
+        self.db_cols = db_cols
 
-        self.colname = colname
+        process = commap.comMap()
 
-    def mapGeneID2GOID(self):
+        self.process = process
 
-        docs = self.col.find({})
+    def dbID2hgncSymbol(self):
+        '''
+        this function is to create a mapping relation between go ID with HGNC Symbol
+        '''
+        uniprot2symbol = self.process.uniprotGeneID2hgncSymbol()
 
-        geneid2goid = dict()
+        go_gene_anno_col = self.db_cols.get('go.geneanno')
 
-        for doc in docs:
+        go_gene_anno_docs = go_gene_anno_col.find({})
 
-            geneid = doc.get('DB_Object_ID')
+        output = dict()
 
-            goid = doc.get('GO',{}).keys()
+        hgncSymbol2goID = output
 
-            if geneid and geneid not in geneid2goid:
+        no = 0
 
-                geneid2goid[geneid] = list()
+        for doc in go_gene_anno_docs:
 
-            if goid:
-                geneid2goid[geneid] += goid
+            gene_id = doc.get('DB_Object_ID')
 
-        goid2geneid = value2key(geneid2goid)
+            go_id = doc.get('GO ID')
 
-        map_dir = pjoin(go_gene_map,self.colname)
+            gene_symbol = uniprot2symbol.get(gene_id)
 
-        createDir(map_dir)
+            if gene_symbol and go_id:
 
-        with open(pjoin(map_dir,'geneid2goid.json'),'w') as wf:
-            json.dump(geneid2goid,wf,indent=8)
+                for symbol in gene_symbol:
 
-        with open(pjoin(map_dir,'goid2geneid.json'),'w') as wf:
-            json.dump(goid2geneid,wf,indent=8)
+                    if symbol not in output:
+                        output[symbol] = list()
 
-    def mapping(self):
+                    output[symbol].append(go_id)
 
-        self.mapGeneID2GOID()
+            else:
+                no += 1
+
+        # dedup val for every key
+        for key,val in output.items():
+            val = list(set(val))
+            output[key] = val
+
+        print 'go uniprot gene id can\'t be found in hgnc uniprot_ids',no
+
+        print 'hgncSymbol2goID',len(output)
+
+        with open('./hgncSymbol2goID.json','w') as wf:
+            json.dump(hgncSymbol2goID,wf,indent=8)
+            
+        return (hgncSymbol2goID,'GO ID')
 
 class gene_parser(object):
     """docstring for gene_parser"""
@@ -545,6 +562,6 @@ if __name__ == '__main__':
 
     # extractData(filepaths,date)
     
-    # man = dbMap('171129140122')
-
+    man = dbMap()
+    man.dbID2hgncSymbol()
     # man.mapping()

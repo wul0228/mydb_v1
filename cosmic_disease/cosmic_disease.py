@@ -32,7 +32,7 @@ def downloadData():
 
 def extractData(filepath,version):
     
-    process = disgenet_parser(version)
+    process = cosmic_parser(version)
 
     process.tsv(filepath)
     
@@ -53,21 +53,6 @@ def selectData():
     #args:
     
     return
-
-class dbMap(object):
-
-    #class introduction
-
-    def __init__(self):
-        pass
-
-
-    def mapXX2XX(self):
-        pass
-
-    def mapping(self):
-
-        self.mapXX2XX()
 
 class cosmic_parser(object):
     """docstring for cosmic_parser"""
@@ -114,7 +99,80 @@ class cosmic_parser(object):
             n += 1
 
             print 'cosmic.disgene line',n
-     
+    
+class dbMap(object):
+
+    #class introduction
+
+    def __init__(self):
+
+        import commap
+
+        from commap import comMap
+
+        (db,db_cols) = initDB('mydb_v1') 
+
+        self.db = db
+
+        self.db_cols = db_cols
+
+        process = commap.comMap()
+
+        self.process = process
+
+    def dbID2hgncSymbol(self):
+        '''
+        this function is to create a mapping relation between cosmic disease id  with HGNC Symbol
+        '''
+        # because cosmic gene id  is entrez id 
+        entrez2symbol = self.process.entrezID2hgncSymbol()
+
+        cosmic_disgene_gene_col = self.db_cols.get('cosmic.disgene')
+
+        cosmic_disgene_gene_docs = cosmic_disgene_gene_col.find({})
+
+        output = dict()
+
+        hgncSymbol2cosmicDiseaseID = output
+
+        for doc in cosmic_disgene_gene_docs:
+
+            gene_id = doc.get('Entrez GeneId')
+
+            gene_symbol = entrez2symbol.get(gene_id)
+            
+            if gene_symbol:
+
+                for symbol in gene_symbol:
+
+                    if symbol not in output:
+
+                        output[symbol] = list()
+
+                    output[symbol].append(gene_id)
+
+        # dedup val for every key
+        for key,val in output.items():
+            val = list(set(val))
+            output[key] = val    
+
+        print 'hgncSymbol2cosmicDiseaseID',len(output)
+
+        with open('./hgncSymbol2cosmicDiseaseID.json','w') as wf:
+            json.dump(output,wf,indent=8)
+
+        return (hgncSymbol2cosmicDiseaseID,'Entrez GeneId')
+class filter(object):
+    """docstring for filter"""
+    def __init__(self):
+
+        pass
+        
+    def gene_topic(self,doc):
+
+        save_keys = ['Entrez GeneId','Somatic','Germline','Tumour Types(Somatic)','Tumour Types(Germline)','Cancer Syndrome','Tissue Type','Molecular Genetics','Role in Cancer','Mutation Types','Translocation Partner','Other Germline Mut','Other Syndrome','Hallmark','HallmarkInfo','categories']
+        return filterKey(doc,save_keys)
+
 def main():
 
     modelhelp = 'help document'
@@ -127,3 +185,5 @@ if __name__ == '__main__':
     main()
     # man = cosmic_parser('171220100108')
     # man.tsv()
+    man = dbMap()
+    man.dbID2hgncSymbol()

@@ -303,6 +303,8 @@ class dgidb_parser(object):
 
             for gene in gene_records:
 
+                gene['entrez_id'] = str(gene.pop('entrez_id'))
+                
                 _inter_types = list()
 
                 interaction_types = gene.get('interaction_types')
@@ -328,15 +330,84 @@ class dbMap(object):
     #class introduction
 
     def __init__(self):
-        pass
 
-    def mapXX2XX(self):
-        pass
+        import commap
 
-    def mapping(self):
+        from commap import comMap
 
-        self.mapXX2XX()
+        (db,db_cols) = initDB('mydb_v1') 
 
+        self.db = db
+
+        self.db_cols = db_cols
+
+        process = commap.comMap()
+
+        self.process = process
+
+    def dbID2hgncSymbol(self):
+        '''
+        this function is to create a mapping relation between disgenet disease id  with HGNC Symbol
+        '''
+        # because disgenet gene id  is entrez id 
+        entrez2symbol = self.process.entrezID2hgncSymbol()
+
+        dgidb_drug_col = self.db_cols.get('dgidb.drug.gene')
+
+        dgidb_drug_docs = dgidb_drug_col.find({})
+
+        output = dict()
+
+        hgncSymbol2dgidbDrugID = output
+
+        for doc in dgidb_drug_docs:
+
+            chembl_id = doc.get('chembl_id')
+
+            gene_id = doc.get('entrez_id')
+
+            gene_symbol = entrez2symbol.get(str(gene_id))
+
+            if gene_symbol:
+
+                for symbol in gene_symbol:
+
+                    if symbol not in output:
+
+                        output[symbol] = list()
+
+                    output[symbol].append(chembl_id)
+
+        # dedup val for every key
+        for key,val in output.items():
+            val = list(set(val))
+            output[key] = val    
+
+        print 'hgncSymbol2dgidbDrugID',len(output)
+
+        with open('./hgncSymbol2dgidbDrugID.json','w') as wf:
+            json.dump(output,wf,indent=8)
+
+        return (hgncSymbol2dgidbDrugID,'chembl_id')
+
+class filter(object):
+    """docstring for gene_topic"""
+    def __init__(self):
+
+        super(filter, self).__init__()
+    
+    def gene_topic_info(self,doc):
+
+        save_keys = ['drug_name','drug_link ','chembl_id','immunotherapy','chembl_id_link','alias','anti_neoplastic','fda_approved']
+
+        return filterKey(doc,save_keys)
+
+    def gene_topic_gene(self,doc):
+
+        save_keys = ['entrez_id','drug_name ','chembl_id','sources','publications','interaction_types']
+
+        return filterKey(doc,save_keys)
+        
 def main():
 
     modelhelp = 'help document'
@@ -360,6 +431,30 @@ if __name__ == '__main__':
 
     # f = open('/home/user/project/dbproject/mydb_v1/dgidb_drug/dataraw/dgidb_drug_v3.0.1_180104135642.json').read()
     # print f.count("name")
+#     man = dbMap()
+#     man.dbID2hgncSymbol()
+
+#     doc = {
+#     "entrez_id" : 3326,
+#     "drug_name" : "RETASPIMYCIN",
+#     "chembl_id" : "CHEMBL1184904",
+#     "sources" : [
+#         "MyCancerGenome",
+#         "TdgClinicalTrial"
+#     ],
+#     "publications" : [ ],
+#     "id" : "26f9aa35-c529-412d-a7fc-33795930f9af",
+#     "gene_name" : "HSP90AB1",
+#     "interaction_types" : [
+#         {
+#             "type_implication" : "In inhibitor interactions, the drug binds to a target and decreases its expression or activity. Most interactions of this class are enzyme inhibitors, which bind an enzyme to reduce enzyme activity.  Wikipedia - Enzyme Inhibitor",
+#             "type" : "inhibitor"
+#         }
+#     ]
+# }
+    
+#     man = filter()
+#     print man.gene_topic_gene(doc)
 
 
 # drug_api http://dgidb.orghttp://dgidb.org/api/v2/drugs

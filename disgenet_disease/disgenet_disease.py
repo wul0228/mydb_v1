@@ -20,7 +20,7 @@ model_name = psplit(os.path.abspath(__file__))[1]
 
 (disgenet_disease_model,disgenet_disease_raw,disgenet_disease_store,disgenet_disease_db,disgenet_disease_map) = buildSubDir('disgenet_disease')
 
-log_path = pjoin(disgenet_disease_model,'disgenet_disease.log')
+log_disease = pjoin(disgenet_disease_model,'disgenet_disease.log')
 
 # main code
 def downloadData(redownload=False):
@@ -44,26 +44,26 @@ def downloadData(redownload=False):
     
         mt = process.getMt()   
 
-        filepath = process.wget(disgenet_download_url,mt,disgenet_disease_raw)
+        filedisease = process.wget(disgenet_download_url,mt,disgenet_disease_raw)
 
-    if not os.path.exists(log_path):
+    if not os.path.exists(log_disease):
 
-        with open(log_path,'w') as wf:
+        with open(log_disease,'w') as wf:
             json.dump({'disgenet':[(mt,today,model_name)]},wf,indent=8)
 
     print  'datadowload completed !'
 
-    return (filepath,today)
+    return (filedisease,today)
 
-def extractData(filepath,date):
+def extractData(filedisease,date):
     
-    filename = psplit(filepath)[1].strip()
+    filename = psplit(filedisease)[1].strip()
 
     fileversion = filename.rsplit('_',1)[0].strip().rsplit('_',1)[1].strip()
 
     process = disgenet_parser(date)
 
-    process.tsv(filepath,fileversion)
+    process.tsv(filedisease,fileversion)
         # bkup all collections
 
     colhead = 'disgenet.disgene'
@@ -72,11 +72,11 @@ def extractData(filepath,date):
 
     print 'extract and insert completed'
     
-    return (filepath,date)
+    return (filedisease,date)
 
 def updateData(insert=False,_mongodb='../_mongodb/'):
 
-    disgenet_disease_log = json.load(open(log_path))
+    disgenet_disease_log = json.load(open(log_disease))
 
     process = disgenet_parser(today)
 
@@ -84,14 +84,14 @@ def updateData(insert=False,_mongodb='../_mongodb/'):
 
     if mt != disgenet_disease_log['disgenet_disease'][-1][0]:
 
-        filepath,version = downloadData(redownload=True)
+        filedisease,version = downloadData(redownload=True)
 
-        extractData(filepath,version)
+        extractData(filedisease,version)
 
         disgenet_disease_log['disgenet_disease'].append((mt,today,model_name))
 
         # create new log
-        with open(log_path,'w') as wf:
+        with open(log_disease,'w') as wf:
 
             json.dump(disgenet_disease_log,wf,indent=2)
 
@@ -116,87 +116,6 @@ def selectData(querykey = 'geneId',value='1'):
     colnamehead = 'disgenet_disease_'
 
     dataFromDB(db,colnamehead,querykey,queryvalue=None)
-
-class dbMap(object):
-
-    #class introduction
-
-    def __init__(self,version):
-
-        conn = MongoClient('localhost',27017)
-
-        db = conn.get_database('mydb')
-
-        colname = 'disgenet_disease_{}'.format(version)
-
-        col = db.get_collection(colname)
-
-        self.col = col
-
-        self.version = version
-
-        self.docs = self.col.find({})
-
-        self.colname = colname
-
-    def mapGeneID2Dis(self):
-
-        geneid2genesym = dict()
-
-        (geneid2diseaseid,genesym2diseaseid,diseaseid2geneid,diseaseid2genesym) = ({},{},{},{})
-
-        for doc in  self.docs:
-
-            gene_id = doc.pop('geneId')
-
-            gene_sym = doc.pop('geneSymbol')
-
-            if gene_id not in geneid2genesym:
-
-                geneid2genesym[gene_id] = list()
-
-            geneid2genesym[gene_id].append(gene_id)
-
-            doc.pop('_id')
-
-            disease = doc.keys()
-
-            if gene_id not in geneid2diseaseid:
-
-                geneid2diseaseid[gene_id] = list()
-
-            geneid2diseaseid[gene_id] +=  disease
-
-            if gene_sym not in genesym2diseaseid:
-
-                genesym2diseaseid[gene_sym] = list()
-
-            genesym2diseaseid[gene_sym] +=  disease
-
-        diseaseid2geneid = value2key(geneid2diseaseid)
-
-        diseaseid2genesym = value2key(genesym2diseaseid)
-
-        genesym2geneid = value2key(geneid2genesym)
-
-        map_dir = pjoin(disgenet_disease_map,self.colname)
-
-        createDir(map_dir)
-
-        save = {'geneid2diseaseid':geneid2diseaseid,'genesym2diseaseid':genesym2diseaseid,
-                    'diseaseid2geneid':diseaseid2geneid,'diseaseid2genesym':diseaseid2genesym,
-                    'geneid2genesym':geneid2genesym,'genesym2geneid':genesym2geneid}
-
-        for filename in save.keys():
-
-            print filename,len(save[filename])
-
-            with open(pjoin(map_dir,'{}.json'.format(filename)),'w') as wf:
-                json.dump(save[filename],wf,indent=8)
-
-    def mapping(self):
-
-        self.mapGeneID2Dis()
 
 class disgenet_parser(object):
 
@@ -226,20 +145,20 @@ class disgenet_parser(object):
 
         savename = '{}_{}_{}.tsv.gz'.format(filename,mt.replace('.','*'),today)
 
-        storefilepath = pjoin(rawdir,savename)
+        storefiledisease = pjoin(rawdir,savename)
 
-        command = 'wget -O {} {}'.format(storefilepath,url)
+        command = 'wget -O {} {}'.format(storefiledisease,url)
 
         os.popen(command)
 
         # gunzip file
-        gunzip = 'gunzip {}'.format(storefilepath)
+        gunzip = 'gunzip {}'.format(storefiledisease)
 
         os.popen(gunzip)
 
-        return storefilepath.rsplit('.gz',1)[0].strip()
+        return storefiledisease.rsplit('.gz',1)[0].strip()
 
-    def tsv(self,filepath,fileversion):
+    def tsv(self,filedisease,fileversion):
 
         colname = 'disgenet.disgene.curated'
 
@@ -249,7 +168,7 @@ class disgenet_parser(object):
         
         col.insert({'dataVersion':fileversion,'dataDate':self.date,'colCreated':today,'file':'all_gene_disease_pmid_associations'})
 
-        tsvfile = open(filepath)
+        tsvfile = open(filedisease)
 
         dis_aso_type = constance(db='disgenet_aso_type')
 
@@ -299,6 +218,71 @@ class disgenet_parser(object):
 
             n += 1
 
+class dbMap(object):
+
+    #class introduction
+
+    def __init__(self):
+
+        import commap
+
+        from commap import comMap
+
+        (db,db_cols) = initDB('mydb_v1') 
+
+        self.db = db
+
+        self.db_cols = db_cols
+
+        process = commap.comMap()
+
+        self.process = process
+
+    def dbID2hgncSymbol(self):
+        '''
+        this function is to create a mapping relation between disgenet disease id  with HGNC Symbol
+        '''
+        # because disgenet gene id  is entrez id 
+        entrez2symbol = self.process.entrezID2hgncSymbol()
+
+        disgenet_disgene_gene_col = self.db_cols.get('disgenet.disgene.curated')
+
+        disgenet_disgene_gene_docs = disgenet_disgene_gene_col.find({})
+
+        output = dict()
+
+        hgncSymbol2disgenetDiseaseID = output
+
+        for doc in disgenet_disgene_gene_docs:
+
+            disease_id = doc.get('diseaseId')
+
+            gene_id = doc.get('geneId')
+
+            gene_symbol = entrez2symbol.get(gene_id)
+            
+            if gene_symbol:
+
+                for symbol in gene_symbol:
+
+                    if symbol not in output:
+
+                        output[symbol] = list()
+
+                    output[symbol].append(disease_id)
+
+        # dedup val for every key
+        for key,val in output.items():
+            val = list(set(val))
+            output[key] = val    
+
+        print 'hgncSymbol2disgenetDiseaseID',len(output)
+
+        with open('./hgncSymbol2disgenetDiseaseID.json','w') as wf:
+            json.dump(output,wf,indent=8)
+
+        return (hgncSymbol2disgenetDiseaseID,'diseaseId')
+
 def main():
 
     modelhelp = model_help.replace('&'*6,'DisGeNET').replace('#'*6,'disgenet')
@@ -310,9 +294,10 @@ def main():
 if __name__ == '__main__':
     main()
     # downloadData(redownload=True)
-    # filepath ='/home/user/project/dbproject/mydb_v1/disgenet_disease/dataraw/all_gene_disease_pmid_associations_5*0_171228085059.tsv'
-    # extractData(filepath,'171228085059') 
-     # man = dbMap('171207172045')
+    # filedisease ='/home/user/project/dbproject/mydb_v1/disgenet_disease/dataraw/all_gene_disease_pmid_associations_5*0_171228085059.tsv'
+    # extractData(filedisease,'171228085059') 
+    man = dbMap()
+    man.dbID2hgncSymbol()
      # man.mapping()
   
  

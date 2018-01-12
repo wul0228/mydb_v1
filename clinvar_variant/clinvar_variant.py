@@ -132,90 +132,6 @@ def selectData(querykey = 'GeneID',value='1'):
 
     dataFromDB(db,colnamehead,querykey,queryvalue=None)
 
-class dbMap(object):
-
-    #class introduction
-
-    def __init__(self,version):
-
-        self.version = version
-
-        conn = MongoClient('localhost',27017)
-
-        db = conn.get_database('mydb')
-
-        colname = 'clinvar_variant_{}'.format(self.version)
-
-        col = db.get_collection(colname)
-
-        self.col = col
-
-        self.docs = col.find({})
-
-        self.colname = colname
-
-    def mapGene2AlleleID(self):
-
-        geneid2gensym = dict()
-
-        geneid2alleleid = dict()
-
-        genesym2alleleid = dict()
-
-        for doc in self.docs:
-
-            gene_id = doc.get('GeneID')
-            gene_sym = doc.get('GeneSymbol')
-            AlleleID = doc.get('AlleleID')
-
-            if gene_id and gene_id != '-1':
-
-                if gene_id not in geneid2gensym :
-
-                    geneid2gensym[gene_id] = list()
-
-                if gene_id not in geneid2alleleid :
-
-                    geneid2alleleid[gene_id] = list()
-
-                geneid2alleleid[gene_id].append(AlleleID)
-
-                if gene_sym:
-
-                    geneid2gensym[gene_id] += gene_sym
-
-                    for sym in gene_sym:
-
-                        if  sym not in genesym2alleleid:
-
-                            genesym2alleleid[sym] = list()
-
-                        genesym2alleleid[sym].append(AlleleID)
-
-        genesym2geneid = value2key(geneid2gensym)
-
-        map_dir = pjoin(clinvar_variant_map,self.colname)
-
-        createDir(map_dir)
-
-        save = {'geneid2gensym':geneid2gensym,'genesym2geneid':genesym2geneid,
-                      'geneid2alleleid':geneid2alleleid, 'genesym2alleleid':genesym2alleleid }
-
-        for name,dic in save.items():
-
-            dedupdic = dict()
-
-            for key,val in dic.items():
-
-                dedupdic[key] = list(set(val))
-
-            with open(pjoin(map_dir,'{}.json'.format(name)),'w') as wf:
-                json.dump(dedupdic,wf,indent=2)
-
-    def mapping(self):
-
-        self.mapGene2AlleleID()
-
 class clinvar_parser(object):
 
     """docstring for clinvar_parser"""
@@ -269,10 +185,24 @@ class clinvar_parser(object):
                 PhenotypeIDS_list = [ i.strip() for i in PhenotypeIDS.split(',') if i]
                 GeneSymbol_list = [ i.strip() for i in GeneSymbol.split(';') if i]
 
+                dbvar= dic.get('nsv/esv (dbVar)')
+
+                if dbvar and dbvar != '-':
+                    dbvar_link = 'https://www.ncbi.nlm.nih.gov/dbvar/variants/{}/'.format(dbvar)
+                else:
+                    dbvar_link = ''
+                
+                rs = dic.get('RS# (dbSNP)')
+                if rs and rs != '-1':
+                    rs_link = 'https://www.ncbi.nlm.nih.gov/projects/SNP/snp_ref.cgi?searchType=adhoc_search&type=rs&rs=rs{}'.format(rs)
+                else:
+                    rs_link = ''
                 dic.update({
                     'PhenotypeIDS':PhenotypeIDS_list,
                     'PhenotypeList':PhenotypeList_list,
-                    'GeneSymbol':GeneSymbol_list
+                    'GeneSymbol':GeneSymbol_list,
+                    'dbVar_link':dbvar_link,
+                    'RS_link':rs_link,
                     })
 
                 col.insert(dic)
@@ -280,6 +210,82 @@ class clinvar_parser(object):
                 print 'clinvar.variant line',n
 
             n += 1
+
+class dbMap(object):
+
+    #class introduction
+
+    def __init__(self):
+
+        import commap
+
+        from commap import comMap
+
+        (db,db_cols) = initDB('mydb_v1') 
+
+        self.db = db
+
+        self.db_cols = db_cols
+
+        process = commap.comMap()
+
+        self.process = process
+
+    def dbID2hgncSymbol(self):
+        '''
+        this function is to create a mapping relation between alle id  with HGNC Symbol
+        '''
+        # because disgenet gene id  is entrez id 
+        hgnc2symbol = self.process.hgncID2hgncSymbol()
+
+        clinvar_variant_col = self.db_cols.get('clinvar.variant')
+
+        clinvar_variant_docs = clinvar_variant_col.find({})
+
+        output = dict()
+
+        hgncSymbol2clinvarVariantID = output
+
+        for doc in clinvar_variant_docs:
+
+            allele_id = doc.get('AlleleID')
+
+            hgnc_id = doc.get('HGNC_ID')
+
+            gene_symbol = hgnc2symbol.get(hgnc_id)
+
+            if allele_id and gene_symbol:
+
+                for symbol in gene_symbol:
+
+                    if symbol not in output:
+
+                        output[symbol] = list()
+
+                    output[symbol].append(allele_id)
+
+        for sym,alles in output.items():
+            alles  = list(set(alles))
+            output[sym] = alles
+            
+        print 'hgncSymbol2clinvarVariantID',len(output)
+
+        with open('./hgncSymbol2clinvarVariantID.json','w') as wf:
+            json.dump(output,wf,indent=8)
+
+        return (hgncSymbol2clinvarVariantID,'AlleleID')
+
+class filter(object):
+    """docstring for gene_topic"""
+    def __init__(self):
+        super(filter, self).__init__()
+    
+    def gene_topic(self,doc):
+        save_keys = ['GeneID','Assembly','Chromosome','Start' ,'Stop', 'ReferenceAllele','AlternateAllele',
+                                'Type','RS# (dbSNP)','RS_link','nsv/esv (dbVar)','dbvar_link','OriginSimple','PhenotypeList',
+                                'ClinicalSignificance','ReviewStatus']
+
+        return filterKey(doc,save_keys)
 
 def main():
 
@@ -293,9 +299,9 @@ if __name__ == '__main__':
     
     main()
     # filepath,version = downloadData(redownload = True)
-
+    # updateData()
     # filepath = '/home/user/project/dbproject/mydb_v1/clinvar_variant/dataraw/variant_summary_21320171226220427_171228125338.txt'
     # version = '171228125338'
     # extractData(filepath,version)
-    # man = dbMap('171208183634')
-    # man.mapping()
+    man = dbMap()
+    man.dbID2hgncSymbol()
