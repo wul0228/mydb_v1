@@ -151,90 +151,6 @@ def selectData(querykey = 'name',value='EBV LMP1 signaling'):
     dataFromDB(db,colnamehead,querykey,queryvalue=None)
 
 
-class dbMap(object):
-
-    #class introduction
-
-    def __init__(self,version):
-
-        conn = MongoClient('localhost',27017)
-
-        db = conn.get_database('mydb')
-
-        colname = 'wiki_pathway_{}'.format(version)
-
-        col = db.get_collection(colname)
-
-        self.col = col
-
-        self.version = version
-
-        self.colname = colname
-
-        self.docs =self.col.find({})
-
-    def mappathid2pathname(self):
-
-        pathid2pathname = dict()
-
-        pathname2pathid = dict()
-
-        geneid2pathid = dict()
-
-        for doc in self.docs:
-
-            path_id = doc.get('path_id')
-
-            path_name = doc.get('path_name')
-
-            genes  = doc.get('GeneProduct')
-
-            if genes:
-                
-                for key,val in genes.items():
-
-                    xref = val.get('xref')
-                    if  xref:
-
-                        for k,v  in xref.items():
-                            geneid = k + ':' + v
-
-                            if geneid not in geneid2pathid:
-                                geneid2pathid[geneid] = list()
-
-                            geneid2pathid[geneid].append(path_id)
-
-            if path_name:
-
-                pathid2pathname.update({path_id:path_name})
-
-                if path_name not in pathname2pathid:
-
-                    pathname2pathid[path_name] = list()
-
-                pathname2pathid[path_name].append(path_id)
-
-            else:
-                print path_id,'no name'
-
-        pathid2geneid = value2key(geneid2pathid)
-
-        map_dir = pjoin(wiki_pathway_map,self.colname)
-
-        createDir(map_dir)
-
-        save = {'pathid2pathname':pathid2pathname,'pathname2pathid':pathname2pathid,
-                    'geneid2pathid':geneid2pathid,'pathid2geneid':pathid2geneid}
-
-        for name,dic in save.items():
-
-            with open(pjoin(map_dir,'{}.json'.format(name)),'w') as wf:
-                json.dump(dic,wf,indent=2)
-
-
-    def mapping(self):
-
-        self.mappathid2pathname()
 
 class wiki_parser(object):
 
@@ -967,6 +883,7 @@ class wiki_parser(object):
 
         for node,val in nodeinfo.items():
 
+
             allgraphId_nodegraphId.update({node:[val,]})
 
         for graphId,groupId in graphId_groupId.items():
@@ -1005,7 +922,78 @@ class wiki_parser(object):
 
         allgraphId_nodegraphId.update(graphId_label)
 
+        for graphId,info in allgraphId_nodegraphId.items():
+
+            _info = list()
+            if isinstance(info,list):
+
+                [_info.append(i) for i in info if i not in _info] 
+                allgraphId_nodegraphId[graphId] = _info
+
         return allgraphId_nodegraphId
+
+class dbMap(object):
+
+    def __init__(self):
+
+        import commap
+
+        from commap import comMap
+
+        (db,db_cols) = initDB('mydb_v1') 
+
+        self.db = db
+
+        self.db_cols = db_cols
+
+        process = commap.comMap()
+
+        self.process = process
+
+    def dbID2hgncSymbol(self):
+        '''
+        this function is to create a mapping relation between wiki path id  with HGNC Symbol
+        '''
+        # because wiki gene id  is entrez id 
+        entrez2symbol = self.process.entrezID2hgncSymbol()
+
+        wiki_path_gene_col = self.db_cols.get('wiki.pathway.gene')
+
+        wiki_path_gene_docs = wiki_path_gene_col.find({})
+
+        output = dict()
+
+        hgncSymbol2wikiPathID = output
+
+        for doc in wiki_path_gene_docs:
+
+            path_id = doc.get('path_id')
+
+            gene_id = doc.get('entrez_id')
+
+            gene_symbol = entrez2symbol.get(gene_id)
+            
+            if gene_symbol:
+
+                for symbol in gene_symbol:
+
+                    if symbol not in output:
+
+                        output[symbol] = list()
+
+                    output[symbol].append(path_id)
+
+        # dedup val for every key
+        for key,val in output.items():
+            val = list(set(val))
+            output[key] = val
+            
+        print 'hgncSymbol2wikiPathID',len(output)
+
+        with open('./hgncSymbol2wikiPathID.json','w') as wf:
+            json.dump(output,wf,indent=8)
+
+        return (hgncSymbol2wikiPathID,'path_id')
 
 def main():
 
@@ -1023,5 +1011,5 @@ if __name__ == '__main__':
     # filepaths = [pjoin(rawdir,filename) for filename in listdir(rawdir)]
     # date = '180103114842'
     # extractData(filepaths,date)
-    # man = dbMap('171205101037')
-    # man.mapping()
+    # man = dbMap()
+    # man.wikiPathID2hgncSymbol()

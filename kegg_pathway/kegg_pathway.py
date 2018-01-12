@@ -323,6 +323,7 @@ class kegg_parser(object):
                             gene_col.insert({
                                 'path_id':path_id,
                                 'path_org':'hsa',
+                                'gene_id':gene_id,
                                 'gene_symbol':gene_symbol,
                                 'gene_name':gene_name,
                                 'ko_entry':ko_entry,
@@ -638,76 +639,67 @@ class dbMap(object):
 
     #class introduction
 
-    def __init__(self,version):
+    def __init__(self):
 
-        self.version = version
+        import commap
 
-        conn = MongoClient('127.0.0.1',27017)
+        from commap import comMap
 
-        db = conn.get_database('mydb')
+        (db,db_cols) = initDB('mydb_v1') 
 
-        colname = 'kegg_pathway_{}'.format(self.version)
+        self.db = db
 
-        col = db.get_collection(colname)
+        self.db_cols = db_cols
 
-        docs = col.find({})
+        process = commap.comMap()
 
-        self.docs  = docs
+        self.process = process
 
-        self.colname = colname
+    def dbID2hgncSymbol(self):
+        '''
+        this function is to create a mapping relation between kegg path id  with HGNC Symbol
+        '''
+        # because kegg gene id  is entrez id 
+        entrez2symbol = self.process.entrezID2hgncSymbol()
 
-    def mappathid2pathname(self):
+        kegg_path_gene_col = self.db_cols.get('kegg.pathway.gene')
 
-        pathid2pathname = dict()
+        kegg_path_gene_docs = kegg_path_gene_col.find({})
 
-        pathname2pathid = dict()
+        output = dict()
 
-        geneid2pathid = dict()
+        hgncSymbol2keggPathID = output
 
-        for doc in self.docs:
+        for doc in kegg_path_gene_docs:
 
             path_id = doc.get('path_id')
 
-            path_name = doc.get('path_name')
+            gene_id = doc.get('gene_id')
+
+            gene_symbol = entrez2symbol.get(gene_id)
             
-            pathid2pathname.update({path_id:path_name})
+            if gene_symbol:
 
-            genes = doc.get( "gene",{}).keys()
+                for symbol in gene_symbol:
 
-            if genes:
+                    if symbol not in output:
 
-                for geneid in genes:
+                        output[symbol] = list()
 
-                    if geneid not in geneid2pathid:
+                    output[symbol].append(path_id)
 
-                            geneid2pathid[geneid] = list()
+        # dedup val for every key
+        for key,val in output.items():
+            val = list(set(val))
+            output[key] = val    
 
-                    geneid2pathid[geneid].append(path_id)
+        print 'hgncSymbol2keggPathID',len(output)
 
-            if path_name not in pathname2pathid:
-                
-                pathname2pathid[path_name] = list()
+        with open('./hgncSymbol2keggPathID.json','w') as wf:
+            json.dump(output,wf,indent=8)
 
-            pathname2pathid[path_name].append(path_id)
-
-        pathid2geneid = value2key(geneid2pathid)
-
-        map_dir = pjoin(kegg_pathway_map,self.colname)
-
-        createDir(map_dir)
-
-        save = {'pathid2pathname':pathid2pathname,'pathname2pathid':pathname2pathid,
-                    'geneid2pathid':geneid2pathid,'pathid2geneid':pathid2geneid}
-
-        for name,dic in save.items():
-
-            with open(pjoin(map_dir,'{}.json'.format(name)),'w') as wf:
-                json.dump(dic,wf,indent=2)
-
-    def mapping(self):
-
-        self.mappathid2pathname()
-
+        return (hgncSymbol2keggPathID,'path_id')
+    
 def main():
 
     modelhelp = model_help.replace('&'*6,'KEGG_PATHWAY').replace('#'*6,'kegg_pathway')
@@ -727,7 +719,7 @@ if __name__ == '__main__':
     # version = ('171226090923','December&25#&2017')
 
     # extractData(filepaths,version)
-    # man = dbMap('171211085731')
-    # man.mapping()
+    man = dbMap()
+    man.dbID2hgncSymbol()
 
 

@@ -241,15 +241,84 @@ class dbMap(object):
     #class introduction
 
     def __init__(self):
+
+        import commap
+
+        from commap import comMap
+
+        (db,db_cols) = initDB('mydb_v1') 
+
+        self.db = db
+
+        self.db_cols = db_cols
+
+        process = commap.comMap()
+
+        self.process = process
+
+    def dbID2hgncSymbol(self):
+        '''
+        this function is to create a mapping relation between disgenet disease id  with HGNC Symbol
+        '''
+        # because disgenet gene id  is entrez id 
+        rsID2hgncSymbol = self.process.rsID2hgncSymbol()
+
+        igsr_variant_col = self.db_cols.get('igsr.variant')
+
+        igsr_variant_docs = igsr_variant_col.find({})
+
+        output = dict()
+
+        hgncSymbol2igsrvariantID = output
+
+        n = 0
+
+        for doc in igsr_variant_docs:
+
+            rs_id = doc.get("ID")
+
+            gene_symbol = rsID2hgncSymbol.get(rs_id)
+
+            if rs_id and  gene_symbol:
+
+                for symbol in gene_symbol:
+
+                    if symbol not in output:
+
+                        output[symbol] = list()
+
+                    output[symbol].append(rs_id)
+
+            n += 1
+            print 'igsr.variant doc',n
+
+        # dedup val for every key
+        for key,val in output.items():
+            val = list(set(val))
+            output[key] = val    
+
+        print 'hgncSymbol2igsrvariantID',len(output)
+
+        for sym,rs in output.items():
+            rs = list(set(rs))
+            output[sym] = rs
+            
+        with open('./hgncSymbol2igsrvariantID.json','w') as wf:
+            json.dump(output,wf,indent=8)
+
+        return (hgncSymbol2igsrvariantID,'ID')
+
+class filter(object):
+    """docstring for filter"""
+    def __init__(self):
+
         pass
+        
+    def gene_topic(self,doc):
 
+        save_keys = ['ID','AF','EAS_AF','AMR_AF','AFR_AF','EUR_AF','SAS_AF']
 
-    def mapXX2XX(self):
-        pass
-
-    def mapping(self):
-
-        self.mapXX2XX()
+        return filterKey(doc,save_keys)
 
 def main():
 
@@ -265,3 +334,6 @@ if __name__ == '__main__':
     # filepath = '/home/user/project/dbproject/mydb_v1/igsr_variant/dataraw/ALL.wgs.phase3_shapeit2_mvncall_integrated_v5b.20130502.sites_20130502_1801041729.vcf'
     # date = '1801041729'
     # extractData(filepath,date)
+    # man = dbMap()
+    # man.dbID2hgncSymbol()
+  
