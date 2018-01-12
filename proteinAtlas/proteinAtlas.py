@@ -116,67 +116,6 @@ def selectData(querykey = 'Ensembl',value='ENSG00000000003'):
 
     dataFromDB(db,colnamehead,querykey,queryvalue=None)
 
-
-class dbMap(object):
-
-    #class introduction
-
-    def __init__(self,version):
-
-        self.version = version
-
-        conn = MongoClient('localhost',27017)
-
-        db = conn.get_database('mydb')
-
-        colname = 'proteinAtlas_{}'.format(self.version)
-
-        col = db.get_collection(colname)
-
-        self.col = col
-
-        self.colname = colname
-
-        self.docs = col.find({})
-
-    def mapgeneidgenesym(self):
-        
-        geneid2genesym = dict()
-
-        for doc in self.docs:
-
-            geneid = doc.get('Ensembl')
-
-            genesym = doc.get('Gene')
-
-            genesynonym = [i.strip() for i in doc.get('Gene&synonym') if i]
-
-            if geneid not in geneid2genesym:
-                geneid2genesym[geneid] = list()
-
-
-            if genesym:
-                geneid2genesym[geneid].append(genesym)
-
-            if genesynonym:
-                geneid2genesym[geneid] += genesynonym
-
-        map_dir = pjoin(proteinAtlas_map,self.colname)
-
-        createDir(map_dir)
-
-        genesym2geneid = value2key(geneid2genesym)
-
-        save = {'geneid2genesym':geneid2genesym,'genesym2geneid':genesym2geneid}
-
-        for name,dic in save.items():
-            with open(pjoin(map_dir,'{}'.format(name)),'w') as wf:
-                json.dump(dic,wf,indent=8)
-
-    def mapping(self):
-
-        self.mapgeneidgenesym()
-
 class protein_parser(object):
 
     def __init__(self, date):
@@ -275,15 +214,17 @@ class protein_parser(object):
 
                 RNA_CS_TPM =  [i.strip() for i in dic.pop('RNA&CS&TPM').split(';')]
 
+                subcell_location = [i.strip() for i in dic.pop('Subcellular&location').split('<br>') if i]
+
                 dic.update({
                     'Gene&synonym':synonym,
                     'Protein&class':protein_class,
                     'Antibody':Antibody,
                     'Prognostic&p-value':Prognostic_p_value,
                     'RNA&TS&TPM':RNA_TS_TPM,
-                    'RNA&CS&TPM':RNA_CS_TPM
+                    'RNA&CS&TPM':RNA_CS_TPM,
+                    'Subcellular&location':subcell_location,
                     })
-
 
                 Ensembl = dic.get('Ensembl')
 
@@ -301,6 +242,69 @@ class protein_parser(object):
 
             n += 1
 
+class dbMap(object):
+
+    #class introduction
+
+    def __init__(self):
+
+        import commap
+
+        from commap import comMap
+
+        (db,db_cols) = initDB('mydb_v1') 
+
+        self.db = db
+
+        self.db_cols = db_cols
+
+        process = commap.comMap()
+
+        self.process = process
+
+    def dbID2hgncSymbol(self):
+        
+        '''
+        this function is to create a mapping relation between proteinAtlas ensembl GeneID with HGNC Symbol
+        '''
+
+        ensembl2symbol = self.process.ensemblGeneID2hgncSymbol()
+
+        proteinAtlas_col  = self.db_cols.get('proteinatlas.geneanno')
+
+        proteinAtlas_docs = proteinAtlas_col.find({})
+
+        output = dict()
+        
+        hgncSymbol2proteinAtlasGeneID = output
+
+        for doc in proteinAtlas_docs:
+
+            gene_id = doc.get('Ensembl')
+
+            gene_symbol = ensembl2symbol.get(gene_id)
+
+            if gene_symbol:
+
+                for symbol in gene_symbol:
+                    
+                    if symbol not in output:
+                        output[symbol] = list()
+
+                    output[symbol].append(gene_id)
+        
+        # dedup val for every key
+        for key,val in output.items():
+            val = list(set(val))
+            output[key] = val      
+
+        print 'hgncSymbol2proteinAtlasGeneID',len(output)
+
+        with open('./hgncSymbol2proteinAtlasGeneID.json','w') as wf:
+            json.dump(output,wf,indent=8)
+
+        return(output,'Ensembl')
+
 def main():
 
     modelhelp = model_help.replace('&'*6,'PROTEIN ATLAS').replace('#'*6,'protein atlas')
@@ -310,10 +314,10 @@ def main():
     getOpts(modelhelp,funcs=funcs)
         
 if __name__ == '__main__':
-    # main()
-    filepath = '/home/user/project/dbproject/mydb_v1/proteinAtlas/dataraw/proteinatlas_18_171225172243.tsv'
-    date = '171225172243'
-    extractData(filepath,date)
+    main()
+    # filepath = '/home/user/project/dbproject/mydb_v1/proteinAtlas/dataraw/proteinatlas_18_171225172243.tsv'
+    # date = '171225172243'
+    # extractData(filepath,date)
 
-    # man  = dbMap('171208124150')
-    # man.mapping()
+    man  = dbMap()
+    man.dbID2hgncSymbol()

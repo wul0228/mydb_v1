@@ -114,60 +114,6 @@ def selectData(querykey = 'miRTarBase&ID',value='MIRT042081'):
 
     dataFromDB(db,colnamehead,querykey,queryvalue=None)
 
-class dbMap(object):
-
-    #class introduction
-
-    def __init__(self,version):
-
-        self.version = version
-
-        conn = MongoClient('localhost',27017)
-
-        db = conn.get_database('mydb')
-
-        colname = 'miRTarBase_{}'.format(self.version)
-
-        col = db.get_collection(colname)
-
-        self.col = col
-
-        self.colname = colname
-
-    def mapgenId2mirID(self):
-        
-        docs = self.col.find({})
-
-        mirID_geneID = dict()
-
-        for doc in docs:
-
-            mirID = doc.get('miRTarBase&ID')
-
-            geneID = doc.get('gene').keys() 
-
-            if mirID not in mirID_geneID:
-
-                mirID_geneID[mirID] = list()
-
-            mirID_geneID[mirID] += geneID
-
-        geneID_mirID = value2key(mirID_geneID)
-
-        map_dir = pjoin(miRTarBase_map,self.colname)
-
-        createDir(map_dir)
-
-        with open(pjoin(map_dir,'geneID2mirID.json'),'w') as wf:
-            json.dump(geneID_mirID,wf,indent=8)
-
-        with open(pjoin(map_dir,'mirID2geneID.json'),'w') as wf:
-            json.dump(mirID_geneID,wf,indent=8)
-
-    def mapping(self):
-
-        self.mapgenId2mirID()
-
 class mirtarbase_parser(object):
 
     def __init__(self, date):
@@ -251,13 +197,101 @@ class mirtarbase_parser(object):
 
                 if row != 0:
 
+                    _data = list()
+
+                    for v in data:
+                        if isinstance(v,float):
+                            _data.append(str(int(v)))
+                        else:
+                            _data.append(v)
+
                     dic = dict([(key,val) for key,val in zip(
-                        keys,data)])
+                        keys,_data)])
 
                     collection.insert(dic)
 
                     print 'miRTarBase line',row,len(dic)
-        
+
+class dbMap(object):
+
+    #class introduction
+
+    def __init__(self):
+
+        import commap
+
+        from commap import comMap
+
+        (db,db_cols) = initDB('mydb_v1') 
+
+        self.db = db
+
+        self.db_cols = db_cols
+
+        process = commap.comMap()
+
+        self.process = process
+
+    def dbID2hgncSymbol(self):
+        '''
+        this function is to create a mapping relation between mirTarBase id  with HGNC Symbol
+        '''
+        # because disgenet gene id  is entrez id 
+        entrez2symbol = self.process.entrezID2hgncSymbol()
+
+        mirtarbase_col = self.db_cols.get('mirtarbase.mirgene')
+
+        mirtarbase_docs = mirtarbase_col.find({})
+
+        output = dict()
+
+        hgncSymbol2mirTarBaseID = output
+
+        for doc in mirtarbase_docs:
+
+            mirtarbase_id = doc.get('miRTarBase ID')
+
+            gene_id = doc.get("Target Gene (Entrez ID)")
+
+            if mirtarbase_id and gene_id:
+
+                gene_symbol = entrez2symbol.get(gene_id)
+
+                if gene_symbol:
+
+                    for symbol in gene_symbol:
+
+                        if symbol not in output:
+
+                            output[symbol] = list()
+
+                        output[symbol].append(mirtarbase_id)
+
+        # dedup val for every key
+        for key,val in output.items():
+            val = list(set(val))
+            output[key] = val    
+
+        print 'hgncSymbol2mirTarBaseID',len(output)
+
+        with open('./hgncSymbol2mirTarBaseID.json','w') as wf:
+            json.dump(output,wf,indent=8)
+
+        return (hgncSymbol2mirTarBaseID,'miRTarBase ID')
+    
+class filter(object):
+    """docstring for gene_topic"""
+    def __init__(self):
+
+        super(filter, self).__init__()
+    
+    def gene_topic(self,doc):
+
+        save_keys = ['Target Gene (Entrez ID)','miRNA','Species (Target Gene)','miRTarBase ID',
+                                'References (PMID)','Experiments','Support Type','Target Gene']
+
+        return filterKey(doc,save_keys)
+
 def main():
 
     modelhelp = model_help.replace('&'*6,'miRTarBase').replace('#'*6,'miRTarBase')
@@ -267,6 +301,7 @@ def main():
     getOpts(modelhelp,funcs=funcs)
         
 if __name__ == '__main__':
+
     main()
 
     # filepath = '/home/user/project/dbproject/mydb_v1/miRTarBase/dataraw/miRTarBase_MTI_7*0_171211094532.xlsx'
@@ -274,5 +309,6 @@ if __name__ == '__main__':
     # date = '171211094532'
 
     # extractData(filepath,date)
-    # man = dbMap('171211094532')
-    # man.mapping()
+    man = dbMap()
+    man.dbID2hgncSymbol()
+    pass

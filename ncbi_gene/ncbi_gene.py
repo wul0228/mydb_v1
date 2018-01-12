@@ -761,8 +761,11 @@ class dbMap(object):
     '''
     this class is set to map ncbi gene id to other db
     '''
-
     def __init__(self):
+
+        import commap
+
+        from commap import comMap
 
         (db,db_cols) = initDB('mydb_v1') 
 
@@ -770,16 +773,21 @@ class dbMap(object):
 
         self.db_cols = db_cols
 
-    def ncbiGeneID2hgncSymbol(self):
+        process = commap.comMap()
+
+        self.process = process
+
+    def dbID2hgncSymbol(self):
         '''
         this function is to create a mapping relation between NCBI GeneID with HGNC Symbol
         '''
+        entrez2symbol = self.process.entrezID2hgncSymbol()
 
-        ncbi_gene_info_col = db_cols.get('ncbi.gene.info')
+        ncbi_gene_info_col = self.db_cols.get('ncbi.gene.info')
 
-        hgnc_gene_col = db_cols.get('hgnc.gene')
+        output = dict()
 
-        geneID2symbol = dict()
+        hgncSymbol2ncbiGeneID = output
 
         ncbi_gene_info_docs = ncbi_gene_info_col.find({})
 
@@ -787,64 +795,40 @@ class dbMap(object):
 
             gene_id = doc.get('GeneID')
 
-            hgnc_docs = hgnc_gene_col.find({})
+            gene_symbol = entrez2symbol.get(gene_id)
 
-   
-
-    def mapping(self):
-
-        # self.mapGeneID2Symbol()
-
-        genid_refseq_summary = dict()
-
-        n = 0
-
-        for doc in self.docs:
-
-            GenID = doc.get('GeneID')
-
-            refseq = doc.get('genomic_nucleotide_accession*version')
-
-            if refseq:
+            if gene_symbol:
                 
-                for version,summary in refseq.items():
+                for symbol in gene_symbol:
 
-                    if summary:
+                    if symbol not in output:
+                        output[symbol] = list()
 
-                        if GenID not in genid_refseq_summary:
+                    output[symbol].append(gene_id)
 
-                            genid_refseq_summary[GenID] = dict()
+        # dedup val for every key
+        for key,val in output.items():
+            val = list(set(val))
+            output[key] = val    
 
-                        genid_refseq_summary[GenID][version] = summary
+        print 'hgncSymbol2ncbiGeneID',len(output)
 
-            n += 1
+        with open('./hgncSymbol2ncbiGeneID.json','w') as wf:
+            json.dump(output,wf,indent=8)
 
-            print n
-
-        geneid_2orMoreSummary = dict()
-        
-        for geneid,infos in genid_refseq_summary.items():
-
-            # infos = list(set(infos))
-
-            genid_refseq_summary[geneid] = infos
-
-            if len(infos) >= 2:
-
-                geneid_2orMoreSummary[geneid] = infos
-
-        with open('./geneid_refseq_summary.json','w') as wf:
-            json.dump(genid_refseq_summary,wf,indent=8)
-
-        with open('geneid_2orMoreSummary.json','w') as wf:
-            json.dump(geneid_2orMoreSummary,wf,indent=8)
+        return  (output,'GeneID')
 
 class filter(object):
     """docstring for filter"""
     def __init__(self, arg):
         super(filter, self).__init__()
         self.arg = arg
-        
+    
+    def gene_topic(self):
+        '''
+        this function is set to filter filed of doc for gene_topic 
+        '''
+        pass
 def main():
 
     modelhelp = model_help.replace('&'*6,'NCBI_GENE').replace('#'*6,'ncbi_gene')
@@ -861,6 +845,7 @@ if __name__ == '__main__':
     # date = '171124120457'
     # extractData(filepaths,date)
     man = dbMap()
+    man.dbID2hgncSymbol()
 
 
 

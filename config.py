@@ -171,14 +171,14 @@ reactome_download_web3 = 'https://reactome.org/download-data/'
 wiki_pathway_download = 'https://www.wikipathways.org/index.php/Download_Pathways'
 
 #~~~~~~~~~~~~~~~~~~~clinvar varient~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-clinVar_varient_ftp_infos = {
+clinvar_varient_ftp_infos = {
 'host' : 'ftp.ncbi.nlm.nih.gov' ,
 'user':'anonymous',
 'passwd' : '',
 'logdir' : '/pub/clinvar/tab_delimited/'
 }
 
-clinVar_varient_filename = 'variant_summary.txt.gz'
+clinvar_varient_filename = 'variant_summary.txt.gz'
 
 #~~~~~~~~~~~~~~~~~~~igsr varient~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 igsr_download_web = 'http://www.internationalgenome.org/data#download'

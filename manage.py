@@ -82,7 +82,7 @@ class manager(object):
         '''
 
         updates = {
-        'ncbi_gene_info':ncbi_gene_info.updateData,
+        'ncbi_gene':ncbi_gene.updateData,
         'ensembl_gene':ensembl_gene.updateData,
         'kegg_pathway':kegg_pathway.updateData,
         # 'reactom_pathway':reactom_pathway.updateData,

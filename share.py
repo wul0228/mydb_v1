@@ -12,6 +12,7 @@ reload(sys)
 sys.path.append('..')
 sys.setdefaultencoding = ('utf-8')
 
+current_path = psplit(os.path.abspath(__file__))[0]
 
 #+++++++++++++++++++++++++ main code ++++++++++++++++++++++++++++++++++++++#
 
@@ -459,6 +460,238 @@ def delCol(db,colname):
 
     print db,colname,'dropped !'
 
+class fram(object):
+    """docstring for fram"""
+    def __init__(self):
+
+        super(fram, self).__init__()
+
+        (db,db_cols) = initDB('mydb_v1')
+
+        self.db = db
+
+        self.db_cols = db_cols
+
+        # self.db_colnames = db_colnames
+
+    def  deval(self,dic):
+
+        '''
+        this function is  set to dedup the key with same value  and  just one key remained
+        '''
+        v  = list()
+
+        for key,val in dic.items():
+            if val :
+                if   str(val) not in v:
+                    v.append(str(val))
+
+                else:
+                    dic.pop(key)
+        return dic
+
+    def dekey(self,key,col,keyclass):
+
+        '''
+        this function is set to return keys in a dict and record the key with a dict value
+        '''
+        print keyclass
+
+        key_fram = dict()
+
+        dic_keys = list()
+
+        docs = col.find({})
+
+        n = len(keyclass)
+
+        for doc in docs:
+
+            for _class in keyclass:
+
+                doc = doc.get(_class,{})
+
+            if doc and isinstance(doc,dict):
+
+                for k,v in doc.items():
+
+                    if isinstance(v,unicode):
+                        if k not in key_fram:
+                            key_fram[k] = ''
+
+                    if isinstance(v,list):
+
+                        if all([isinstance(i,unicode) for i in v]):
+                            if k not in key_fram:
+                                key_fram[k] = ''
+
+                        if all([isinstance(i,dict) for i in v]):
+                            try:
+                                if key not in key_fram:
+                                    key_fram[k] = list()
+                                    key_fram[k].append(dict.fromkeys(v[0].keys(),''))
+                            except:
+                                print '==============',v
+
+                    elif isinstance(v,dict):
+                        dic_keys.append(k)
+
+        dic_keys = list(set(dic_keys))
+
+        print '-'*4*n,key
+        print '-'*4*n,'dic_keys',len(dic_keys)
+        return (key_fram,dic_keys)
+
+    def dbfram(self):
+
+        framdir = pjoin(current_path,'_fram_{}'.format(today))
+        createDir(framdir)
+
+        # with open(pjoin(framdir,'fram.log'),'w') as wf:
+        #     json.dump(self.db_colnames,wf,indent=4)
+
+        for _db,_col in self.db_cols.items():
+
+            # if _db  in ['clinvar_variant','disgenet_disease','miRTarBase','ensembl_gene','go_gene','hgnc_gene','ncbi_gene','protein_atlas','kegg_pathway','hpo_phenotypic']:
+            if  _db  in ['igsr.variant',]:
+                continue
+
+            # if _db != 'ncbi_gene':
+            #     continue
+            print '*'*100
+            print _db
+            col_fram = self.framCreate(_col)
+
+            for key in ['colCreated','dataVersion','file','dataDate','_id']:
+                if key in col_fram:
+                    col_fram.pop(key)
+
+            with open(pjoin(framdir,'fram_{}.json'.format(_db)),'w') as wf:
+                json.dump(col_fram,wf,indent=4)
+
+    def framCreate(self,col):
+
+        docs = col.find({})
+
+        fram = dict()
+
+        key_1  = list()
+
+        for doc in docs:
+
+            for key,val in doc.items():
+
+                if key not in fram:
+
+                    fram[key] = ''
+
+                if val and isinstance(val,list):
+
+                    if all([isinstance(i,dict) for i in val]):
+                        fram[key] = list()
+                        fram[key].append(dict.fromkeys(val[0].keys(),''))
+
+                elif val and isinstance(val,dict):
+                    key_1.append(key)
+        
+        key_1 = list(set(key_1))
+
+        print len(fram)
+        print len(key_1)
+        print key_1
+
+        print '-'*50
+
+        if key_1:
+            for key1 in key_1:
+
+                (key1_fram,dic_key1s) = self.dekey(key1,col,[key1,])
+
+                # if key1 in ['gene_neighbors','GO',]: # ncbi GO
+                #     key1_fram ={key1_fram.keys()[0]:key1_fram[key1_fram.keys()[0]]}
+
+                if dic_key1s:
+                    # if key1 in ['gene','path_entry','path_reaction','DECIPHER','ORPHA','OMIM','GeneProduct','Metabolite','Rna','Other','Complex','Protein','Pathway']: #miRTarBase   kegg_pathway  hpo wiki 
+                    #     dic_key1s =dic_key1s[10:11]
+
+                    for key2 in dic_key1s:
+                        (key2_fram,dic_key2s) = self.dekey(key2,col,[key1,key2])
+
+                        # if key1 in ['project', ]: #ncbi
+                        #     key2_fram ={key2_fram.keys()[0]:key2_fram[key2_fram.keys()[0]]}
+
+                        if dic_key2s:
+
+                            # if key2 == 'transcript' or key1 == 'nodes': # ensembl reactom
+                            #     dic_key2s = dic_key2s[:1]
+
+                            for key3 in dic_key2s:
+                                (key3_fram,dic_key3s) = self.dekey(key3,col,[key1,key2,key3])
+
+                                if dic_key3s:
+                                    for key4 in dic_key3s:
+                                     (key4_fram,dic_key4s) = self.dekey(key4,col,[key1,key2,key3,key4])
+
+                                     if dic_key4s:
+
+                                         # if key4 == 'exon':
+                                         #    dic_key4s = dic_key4s[1:2]
+
+                                            for key5 in dic_key4s:
+                                             (key5_fram,dic_key5s) = self.dekey(key5,col,[key1,key2,key3,key4,key5])
+
+                                             key4_fram[key5] = key5_fram
+
+                                     key3_fram[key4] = key4_fram
+                                key2_fram[key3] = key3_fram                        
+                        key1_fram[key2] = key2_fram
+                fram[key1] = key1_fram
+
+        fram = self.deval(fram)
+        return fram
+          
+    def colInstance(self):
+
+        _instance_dir = pjoin('./','_instance_{}'.format(today))
+        createDir(_instance_dir)
+
+        for colname,col in self.db_cols.items():
+
+            print colname
+
+            docs = col.find({})
+
+            n = 0
+
+            for doc in docs:
+
+                n += 1
+
+                if n == 100:
+
+                    doc.pop('_id')
+
+                    save_path = pjoin(_instance_dir,'instance_{}.json'.format(colname))
+                    with open(save_path,'w') as wf :
+                        json.dump(doc,wf,indent=8)
+
+                    break
+
+def filterKey(doc,save_keys):
+    
+    filter_doc = dict()
+
+    for key in save_keys:
+
+        val = doc.get(key)
+
+        if not val:
+            val = ''
+
+        filter_doc[key] = val
+
+    return filter_doc
+
 def value2key(dic):
     '''
     this function is to overture a value as the key and the key as vaule, just like {a:[1,2],b:[3,2]} return {1:a,2:[a,b],3:b}
@@ -782,37 +1015,37 @@ def constance(db):
 }
     
     dgidb  = {
-'activator':  'An activator interaction is when a drug activates a biological response from a target, although the mechanism by which it does so may not be understood.    DrugBank examples: PMID12070353',
-'adduct': 'An adduct interaction is when a drug-protein adduct forms by the covalent binding of electrophilic drugs or their reactive metabolite(s) to a target protein.   PMID16199025',
-'agonist':    'An agonist interaction occurs when a drug binds to a target receptor and activates the receptor to produce a biological response.   Wikipedia - Agonist',
-'allosteric modulator':  ' An allosteric modulator interaction occurs when drugs exert their effects on their protein targets via a different binding site than the natural (orthosteric) ligand site. PMID24699297',
-'antagonist': 'An antagonist interaction occurs when a drug blocks or dampens agonist-mediated responses rather than provoking a biological response itself upon binding to a target receptor. Wikipedia - Receptor Antagonist',
-'antibody':   'An antibody interaction occurs when an antibody drug specifically binds the target molecule.    Wikipedia - Antibody',
-'antisense oligonucleotide':  'An antisense oligonucleotide interaction occurs when a complementary RNA drug binds to an mRNA target to inhibit translation by physically obstructing the mRNA translation machinery.  PMID10228554',
-'binder': 'A binder interaction has drugs physically binding to their target.  DrugBank examples: PMID12388666 PMID7584665 PMID14507470',
-'blocker':    'Antagonist interactions are sometimes referred to as blocker interactions; examples include alpha blockers, beta blockers, and calcium channel blockers.    Wikipedia - Receptor Antagonist',
-'chaperone':  'Pharmacological chaperone interactions occur when substrates or modulators directly bind to a partially folded biosynthetic intermediate to stabilise the protein and allow it to complete the folding process to yield a functional protein.   PMID17597553',
-'cleavage':   'Cleavage interactions take place when the drug promotes degeneration of the target protein through cleaving of the peptide bonds.   DrugBank example: PMID10666203',
-'cofactor':   'A cofactor is a drug that is required for a target protein\'s biological activity.   Wikipedia - Cofactor',
-'competitive':    'Competitive antagonists (also known as surmountable antagonists) are drugs that reversibly bind to receptors at the same binding site (active site) on the target as the endogenous ligand or agonist, but without activating the receptor. Wikipedia - Receptor Antagonist',
-'immunotherapy':  'In immunotherapy interactions, the result of the drug acting on the target is an induction, enhancement, or suppression of an immune response.  Wikipedia - Immunotherapy',
-'inducer':    'In inducer interactions, the drug increases the activity of its target enzyme.  Wikipedia - Enzyme Inducer',
-'inhibitor':  'In inhibitor interactions, the drug binds to a target and decreases its expression or activity. Most interactions of this class are enzyme inhibitors, which bind an enzyme to reduce enzyme activity.  Wikipedia - Enzyme Inhibitor',
-'inhibitory allosteric modulator':    'In inhibitory allosteric modulator interactions, also called negative allosteric modulator interactions, the drug will inhibit activity of its target enzyme.   PMID24699297',
-'inverse agonist':    'An inverse agonist interaction occurs when a drug binds to the same target as an agonist, but induces a pharmacological response opposite to that of the agonist.   Wikipedia - Inverse Agonist',
-'ligand': 'In ligand interactions, a drug forms a complex with its target protein to serve a biological function.  Wikipedia - Ligand',
-'modulator':  'In modulator interactions, the drug regulates or changes the activity of its target. In contrast to allosteric modulators, this interaction type may not involve any direct binding to the target.  Modulators. Segen\'s Medical Dictionary. (2011). Retrieved online October 9 2015.',
-'multitarget':    'In multitarget interactions, drugs achieve a physiological effect through simultaneous interaction with multiple gene targets.  PMID22768266',
-'n/a':    'In a negative modulator interaction, the drug negatively regulates the amount or activity of its target. In contrast to an inhibitory allosteric modulator, this interaction type may not involve any direct binding to the target. Wikipedia - Allosteric modulator',
-'other/unknown':  'This is a label given by the reporting source to an interaction that doesn\'t belong to other interaction types, as defined by the reporting source. N/A',
-'partial agonist':   ' In a partial agonist interaction, a drug will elicit a reduced amplitude functional response at its target receptor, as compared to the response elicited by a full agonist.    Wikipedia - Receptor Antagonist',
-'partial antagonist': 'In a partial antagonist interaction, a drug will only partially reduce the amplitude of a functional response at its target receptor, as compared to the reduction of response by a full antagonist.    PMID6188923',
-'positive allosteric modulator':  'In a positive allosteric modulator interaction, the drug increases activity of the target enzyme.   PMID24699297',
-'potentiator':    'In a potentiator interaction, the drug enhances the sensitivity of the target to the target\'s ligands.  Wikipedia - Potentiator',
-'product of': 'These "interactions" occur when the target gene produces the endogenous drug.   N/A',
-'stimulator':' In a stimulator interaction, the drug directly or indirectly affects its target, stimulating a physiological response.  DrugBank Examples: PMID23318685 PMID17148649 PMID15955613',
-'suppressor': 'In a suppressor interaction, the drug directly or indirectly affects its target, suppressing a physiological process.   DrugBank Examples: PMID8386571 PMID14967460',
-'vaccine':   ' In vaccine interactions, the drugs stimulate or restore an immune response to their target.',
+'activator':  'An activator interaction is when a drug activates a biological response from a target, although the mechanism by which it does so may not be understood.    [DrugBank examples: PMID12070353]',
+'adduct': 'An adduct interaction is when a drug-protein adduct forms by the covalent binding of electrophilic drugs or their reactive metabolite(s) to a target protein.   [PMID16199025]',
+'agonist':    'An agonist interaction occurs when a drug binds to a target receptor and activates the receptor to produce a biological response.   [Wikipedia - Agonist]',
+'allosteric modulator':  ' An allosteric modulator interaction occurs when drugs exert their effects on their protein targets via a different binding site than the natural (orthosteric) ligand site. [PMID24699297]',
+'antagonist': 'An antagonist interaction occurs when a drug blocks or dampens agonist-mediated responses rather than provoking a biological response itself upon binding to a target receptor. [Wikipedia - Receptor Antagonist]',
+'antibody':   'An antibody interaction occurs when an antibody drug specifically binds the target molecule.    [Wikipedia - Antibody]',
+'antisense oligonucleotide':  'An antisense oligonucleotide interaction occurs when a complementary RNA drug binds to an mRNA target to inhibit translation by physically obstructing the mRNA translation machinery.  [PMID10228554]',
+'binder': 'A binder interaction has drugs physically binding to their target.  [DrugBank examples: PMID12388666 PMID7584665 PMID14507470]',
+'blocker':    'Antagonist interactions are sometimes referred to as blocker interactions; examples include alpha blockers, beta blockers, and calcium channel blockers.    [Wikipedia - Receptor Antagonist]',
+'chaperone':  'Pharmacological chaperone interactions occur when substrates or modulators directly bind to a partially folded biosynthetic intermediate to stabilise the protein and allow it to complete the folding process to yield a functional protein.   [PMID17597553]',
+'cleavage':   'Cleavage interactions take place when the drug promotes degeneration of the target protein through cleaving of the peptide bonds.   [DrugBank example: PMID10666203]',
+'cofactor':   'A cofactor is a drug that is required for a target protein\'s biological activity.   [Wikipedia - Cofactor]',
+'competitive':    'Competitive antagonists (also known as surmountable antagonists) are drugs that reversibly bind to receptors at the same binding site (active site) on the target as the endogenous ligand or agonist, but without activating the receptor. [Wikipedia - Receptor Antagonist]',
+'immunotherapy':  'In immunotherapy interactions, the result of the drug acting on the target is an induction, enhancement, or suppression of an immune response.  [Wikipedia - Immunotherapy]',
+'inducer':    'In inducer interactions, the drug increases the activity of its target enzyme.  [Wikipedia - Enzyme Inducer]',
+'inhibitor':  'In inhibitor interactions, the drug binds to a target and decreases its expression or activity. Most interactions of this class are enzyme inhibitors, which bind an enzyme to reduce enzyme activity.  [Wikipedia - Enzyme Inhibitor]',
+'inhibitory allosteric modulator':    'In inhibitory allosteric modulator interactions, also called negative allosteric modulator interactions, the drug will inhibit activity of its target enzyme.   [PMID24699297]',
+'inverse agonist':    'An inverse agonist interaction occurs when a drug binds to the same target as an agonist, but induces a pharmacological response opposite to that of the agonist.   [Wikipedia - Inverse Agonist]',
+'ligand': 'In ligand interactions, a drug forms a complex with its target protein to serve a biological function.  [Wikipedia - Ligand]',
+'modulator':  'In modulator interactions, the drug regulates or changes the activity of its target. In contrast to allosteric modulators, this interaction type may not involve any direct binding to the target.  [Modulators. Segen\'s Medical Dictionary. (2011). Retrieved online October 9 2015.]',
+'multitarget':    'In multitarget interactions, drugs achieve a physiological effect through simultaneous interaction with multiple gene targets.  [PMID22768266]',
+'n/a':    'In a negative modulator interaction, the drug negatively regulates the amount or activity of its target. In contrast to an inhibitory allosteric modulator, this interaction type may not involve any direct binding to the target. [Wikipedia - Allosteric modulator]',
+'other/unknown':  'This is a label given by the reporting source to an interaction that doesn\'t belong to other interaction types, as defined by the reporting source. [N/A]',
+'partial agonist':   ' In a partial agonist interaction, a drug will elicit a reduced amplitude functional response at its target receptor, as compared to the response elicited by a full agonist.    [Wikipedia - Receptor Antagonist]',
+'partial antagonist': 'In a partial antagonist interaction, a drug will only partially reduce the amplitude of a functional response at its target receptor, as compared to the reduction of response by a full antagonist.    [PMID6188923]',
+'positive allosteric modulator':  'In a positive allosteric modulator interaction, the drug increases activity of the target enzyme.   [PMID24699297]',
+'potentiator':    'In a potentiator interaction, the drug enhances the sensitivity of the target to the target\'s ligands.  [Wikipedia - Potentiator]',
+'product of': 'These "interactions" occur when the target gene produces the endogenous drug.   [N/A]',
+'stimulator':' In a stimulator interaction, the drug directly or indirectly affects its target, stimulating a physiological response.  [DrugBank Examples: PMID23318685 PMID17148649 PMID15955613]',
+'suppressor': 'In a suppressor interaction, the drug directly or indirectly affects its target, suppressing a physiological process.   [DrugBank Examples: PMID8386571 PMID14967460]',
+'vaccine':   ' In vaccine interactions, the drugs stimulate or restore an immune response to their target.   [N/A]',
 }
     dic = {'go_ano_pro':go_ano_pro,'go_namespace':go_namespace,'go_dbref_link':go_dbref_link,'disgenet_aso_type':disgenet_aso_type,'dgidb':dgidb}
 
@@ -820,7 +1053,8 @@ def constance(db):
 
 def main():
 
-    print neutrCharge('c1ccccc1CC([NH3+])C(=O)[O-]')
+    # print neutrCharge('c1ccccc1CC([NH3+])C(=O)[O-]')
+    colFram('mydb_v1')
     # ncbi_seq_ftp_infos = {
     # 'host' : 'ftp.ncbi.nlm.nih.gov' ,
     # 'user':'anonymous',
@@ -837,5 +1071,8 @@ def main():
 if __name__ == '__main__' :
 
     main()
-    
+    # man = fram()
+    # man.dbfram()
+    # man.colInstance()
+    # 
     # print 
