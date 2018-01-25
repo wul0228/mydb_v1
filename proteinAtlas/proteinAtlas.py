@@ -90,16 +90,19 @@ def updateData(insert=False,_mongodb=proteinAtlas_db):
         extractData(filepath,version)
 
         proteinAtlas_log['proteinAtlas'].append((mt,today,model_name))
-
-        print  '{} \'s new edition is {} '.format('proteinAtlas',mt)
         # create new log
         with open('./proteinAtlas.log','w') as wf:
 
             json.dump(proteinAtlas_log,wf,indent=2)
 
+        print  '{} \'s new edition is {} '.format('proteinAtlas',mt)
+
+        return 'update successfully'
+
     else:
         print  '{} is the latest !'.format('proteinAtlas')
 
+        return 'new version is\'t detected'
 
 def selectData(querykey = 'Ensembl',value='ENSG00000000003'):
     '''
@@ -248,6 +251,8 @@ class dbMap(object):
 
     def __init__(self):
 
+        super(dbMap,self).__init__()
+
         import commap
 
         from commap import comMap
@@ -300,11 +305,17 @@ class dbMap(object):
 
         print 'hgncSymbol2proteinAtlasGeneID',len(output)
 
-        with open('./hgncSymbol2proteinAtlasGeneID.json','w') as wf:
-            json.dump(output,wf,indent=8)
+        # with open('./hgncSymbol2proteinAtlasGeneID.json','w') as wf:
+        #     json.dump(output,wf,indent=8)
 
         return(output,'Ensembl')
 
+class dbFilter(object):
+    """docstring for dbFilter"""
+    def __init__(self, arg):
+        super(dbFilter, self).__init__()
+        self.arg = arg
+        
 def main():
 
     modelhelp = model_help.replace('&'*6,'PROTEIN ATLAS').replace('#'*6,'protein atlas')

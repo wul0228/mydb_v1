@@ -49,6 +49,14 @@ def buildSubDir(name):
 
     return (db,_raw,_store,_db,_map)
 
+def standarString(i,leftjoin,rightjoin):
+
+    '''
+    this function is set to transform string " ... " to  ...  to delelet the ''  in the head or the tail
+    '''
+
+    return '{}'.format(rightjoin).join('{}'.format(leftjoin).join(i.split('"',1)).rsplit('"',1))
+
 def initLogFile(parser,modelname,storedir,mt=None,rawdir=None):
 
     with open(pjoin(storedir,'{}.log'.format(parser)),'w') as wf: 
@@ -72,7 +80,7 @@ def initLogFile(parser,modelname,storedir,mt=None,rawdir=None):
 
                 if name not in log_dict:
 
-                 log_dict[name] = list()
+                    log_dict[name] = list()
 
                 log_dict[name].append((mt,date,modelname))
 
@@ -344,7 +352,7 @@ def dataFromDB(database,colnamehead,querykey,queryvalue=None):
     # get all edition collection
     col_names =[col_name for col_name in  database.collection_names() if col_name.startswith(colnamehead)]
 
-    col_names.sort(key = lambda x:x.split('_')[1].strip())
+    # col_names.sort(key = lambda x:x.split('_')[1].strip())
     
     print  '*'*80
     print 'existed collections','\n'
@@ -387,11 +395,12 @@ def dataFromDB(database,colnamehead,querykey,queryvalue=None):
                 docnum = 0
 
                 for doc in docs:
+                    
+                    doc.pop('_id')
+
                     docnum += 1
 
                     pprint.pprint(doc,indent=4,width=80,depth=None)
-                    
-                    doc.pop('_id')
                     
                     # with open('./out_{}.json'.format(docnum),'w') as wf:
                     #     json.dump(doc,wf,indent=8)
@@ -446,7 +455,7 @@ def bakeupCol(dbname,colname,fileversion,_mongodb='../_mongodb/'):
 
     os.popen(bakeup)
 
-    print '{} bakeup completed'.format(colname)
+    print '{} backup completed'.format(colname)
             
 def delCol(db,colname):
 
@@ -845,7 +854,7 @@ def multiProcess(func,args,size=16):
 
     pool.join
 
-def createNewVersion(rawdir,dbdir,updated_storedir,latest_file_head,version):
+def createNewVersion(rawdir,dbdir,updated_rawdir,latest_file_head,version):
     '''
     this function is to create a new .files in ****/database/  to record the newest  version
     args:
@@ -853,33 +862,36 @@ def createNewVersion(rawdir,dbdir,updated_storedir,latest_file_head,version):
     '''
     update_file_heads = dict()
 
-    for filename in listdir(updated_storedir):
+    for filename in listdir(updated_rawdir):
 
         head = filename.split('_213')[0].strip()
 
-        update_file_heads[head] = filename
+        # ensembl gene
+        if head.count('.chr.gtf'): 
+
+            head = head.split('.chr.gtf')[0].rsplit('.',1)[0] + '.chr.gtf'
+
+        update_file_heads[head] = pjoin(updated_rawdir,filename)
 
         # get the latest .files file that contain the latest files name in mongodb 
     filenames = [name for name in listdir(dbdir) if name.endswith('.files')]
 
-    # print 'filenames',filenames
-
     latest = sorted(filenames,key=lambda x:x.split(latest_file_head)[1].strip())[-1]
         
-    latest_file = json.load(open(pjoin(dbdir,latest)))
+    latest_filepath = json.load(open(pjoin(dbdir,latest)))
 
-        # update the latest  files   with  updated  file
+    # update the latest  files   with  updated  file
     for head ,name in update_file_heads.items():
 
-        latest_file[head] = name
+        latest_filepath[head] = name
 
     with open(pjoin(dbdir,'{}{}.files').format(latest_file_head,version),'w') as wf:
 
-        json.dump(latest_file,wf,indent=2)
+        json.dump(latest_filepath,wf,indent=2)
 
-    return (latest_file,version)
+    return (latest_filepath,version)
 
-def insertUpdatedData(rawdir,latest_file,latest_file_head,version,extractData): 
+def insertUpdatedData(rawdir,latest_file,dir_head,version,extractData): 
     '''
     this function is to generate a  new collection in mongodb PubChem  with updated date and the old
     args:
@@ -890,7 +902,7 @@ def insertUpdatedData(rawdir,latest_file,latest_file_head,version,extractData):
         # all file name in new vrsion
     insertFiles = latest_file.values()
 
-    _rawdirs =[dir_name for dir_name in listdir(rawdir) if dir_name.startswith(latest_file_head)]
+    _rawdirs =[dir_name for dir_name in listdir(rawdir) if dir_name.startswith(dir_head)]
 
     num = 0
 
@@ -916,10 +928,10 @@ def insertUpdatedData(rawdir,latest_file,latest_file_head,version,extractData):
 
 def getOpts(modelhelp,funcs,insert=True):
     
-    (downloadData,extractData,updateData,selectData,dbMap,model_store) = funcs
+    (downloadData,extractData,updateData,selectData,model_store) = funcs
     try:
 
-        (opts,args) = getopt.getopt(sys.argv[1:],"haumf:",['--help',"--all","--update","--map","--field=="])
+        (opts,args) = getopt.getopt(sys.argv[1:],"hauf:",['--help',"--all","--update","--field=="])
 
         querykey,queryvalue=("","")
 
@@ -931,11 +943,8 @@ def getOpts(modelhelp,funcs,insert=True):
 
             elif op in ('-a','--all'):
 
-                save,version = downloadData(redownload=True)
-                store,version = extractData(save,version)
-
-                _map = dbMap(version)
-                _map.mapping()
+                save,date = downloadData(redownload=True)
+                store,date = extractData(save,date)
 
             elif op in ('-u','--update'):
                 updateData()
@@ -947,21 +956,21 @@ def getOpts(modelhelp,funcs,insert=True):
 
         sys.exit()
       
-class DateEncoder(json.JSONEncoder):  
+# class DateEncoder(json.JSONEncoder):  
+  
+#     def __init__(self):
 
-    def default(self, obj):  
+#         if isinstance(obj, datetime):  
 
-        if isinstance(obj, datetime):  
+#             return obj.strftime('%Y-%m-%d %H:%M:%S')  
 
-            return obj.strftime('%Y-%m-%d %H:%M:%S')  
+#         # elif isinstance(obj, date):  
 
-        # elif isinstance(obj, date):  
+#         #     return obj.strftime("%Y-%m-%d")  
 
-        #     return obj.strftime("%Y-%m-%d")  
+#         else:  
 
-        else:  
-
-            return json.JSONEncoder.default(self, obj) 
+#             return json.JSONEncoder.default(self, obj) 
 
 
 def constance(db):

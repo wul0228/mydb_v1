@@ -12,7 +12,7 @@ sys.setdefaultencoding = ('utf-8')
 from share import *
 from config import *  
 
-__all__ = ['downloadData','extractData','standarData','insertData','updateData','selectData']
+__all__ = ['downloadData','extractData','updateData','selectData']
 
 version  = 1.0
 
@@ -25,11 +25,10 @@ log_disease = pjoin(disgenet_disease_model,'disgenet_disease.log')
 # main code
 def downloadData(redownload=False):
     '''
-    this function is to download the raw data from go gene FTP WebSite
+    this function is to download the raw data from disgenet  WebSite
     args:
     redownload-- default False, check to see if exists an old edition before download
                        -- if set to true, download directly with no check
-    rawdir-- the directory to save download file
     '''
     if  not redownload:
 
@@ -40,55 +39,72 @@ def downloadData(redownload=False):
 
     if redownload or not existgoFile or  choice == 'y':
 
-        process = disgenet_parser(today)
+        #--------------------------------------------------------------------------------------------------------------------
+        # 1. donwload all_gene_disease_pmid_associations*.tsv
+        process = parser(today)
     
         mt = process.getMt()   
 
-        filedisease = process.wget(disgenet_download_url,mt,disgenet_disease_raw)
-
+        savefilepath = process.getOne(disgenet_download_url,mt,disgenet_disease_raw)
+    
+    #--------------------------------------------------------------------------------------------------------------------
+    #  generate .log file in current  path
     if not os.path.exists(log_disease):
 
         with open(log_disease,'w') as wf:
             json.dump({'disgenet':[(mt,today,model_name)]},wf,indent=8)
 
     print  'datadowload completed !'
+    #--------------------------------------------------------------------------------------------------------------------
+    # return filepaths to extract 
 
-    return (filedisease,today)
+    return (savefilepath,today)
 
-def extractData(filedisease,date):
-    
-    filename = psplit(filedisease)[1].strip()
+def extractData(filepath,date):
+    '''
+    this function is set to distribute all filepath to parser to process
+    args:
+    filepath -- the file to be parserd
+    date -- the date of  data download
+    '''
+    # ----------------------------------------------------------------------------------------------------
+    # 1. distribute filepaths for parser
+    #  just only one file
+    filename = psplit(filepath)[1].strip()
 
     fileversion = filename.rsplit('_',1)[0].strip().rsplit('_',1)[1].strip()
+    # ----------------------------------------------------------------------------------------------------
+    # 2. parser filepaths step by step
+    process = parser(date)
 
-    process = disgenet_parser(date)
-
-    process.tsv(filedisease,fileversion)
-        # bkup all collections
-
+    process.disease_info(filepath,fileversion)
+     # ----------------------------------------------------------------------------------------------------
+    # 3. bkup all collections
     colhead = 'disgenet.disgene'
 
     bkup_allCols('mydb_v1',colhead,disgenet_disease_db)
 
     print 'extract and insert completed'
     
-    return (filedisease,date)
+    return (filepath,date)
 
-def updateData(insert=False,_mongodb='../_mongodb/'):
-
+def updateData(insert=False):
+    '''
+    this function is set to update all file in log
+    '''
     disgenet_disease_log = json.load(open(log_disease))
 
-    process = disgenet_parser(today)
+    process = parser(today)
 
     mt = process.getMt()
 
-    if mt != disgenet_disease_log['disgenet_disease'][-1][0]:
+    if mt != disgenet_disease_log['disgenet'][-1][0]:
 
-        filedisease,version = downloadData(redownload=True)
+        savefilepath,date = downloadData(redownload=True)
 
-        extractData(filedisease,version)
+        extractData(savefilepath,date)
 
-        disgenet_disease_log['disgenet_disease'].append((mt,today,model_name))
+        disgenet_disease_log['disgenet'].append((mt,today,model_name))
 
         # create new log
         with open(log_disease,'w') as wf:
@@ -97,10 +113,12 @@ def updateData(insert=False,_mongodb='../_mongodb/'):
 
         print  '{} \'s new edition is {} '.format('disgenet_disease',mt)
 
-        bakeupCol('disgenet_disease_{}'.format(version),'disgenet_disease',_mongodb)
+        return 'update successfully'
 
     else:
         print  '{} {} is the latest !'.format('disgenet_disease',mt)
+        
+        return 'new version is\'t detected'
 
 def selectData(querykey = 'geneId',value='1'):
     '''
@@ -111,14 +129,16 @@ def selectData(querykey = 'geneId',value='1'):
     '''
     conn = MongoClient('127.0.0.1', 27017 )
 
-    db = conn.mydb
+    db = conn.get_database('mydb_v1')
 
-    colnamehead = 'disgenet_disease_'
+    colnamehead = 'disgenet.disease'
 
     dataFromDB(db,colnamehead,querykey,queryvalue=None)
 
-class disgenet_parser(object):
-
+class parser(object):
+    '''
+    this class is set to parser all raw file to extract content we need and insert to mongodb
+    '''
     def __init__(self, date):
 
         conn = MongoClient('localhost',27017)
@@ -130,7 +150,9 @@ class disgenet_parser(object):
         self.db = db
 
     def getMt(self):
-
+        '''
+        this function is set to get the latest version of disgenet from DisGeNET web site
+        '''
         web = requests.get(disgenet_download_web).content
 
         soup = bs(web,'lxml')
@@ -139,36 +161,50 @@ class disgenet_parser(object):
 
         return version
 
-    def wget(self,url,mt,rawdir):
-
+    def getOne(self,url,mt,rawdir):
+        '''
+        this function is to download  one file with a given url
+        args:
+        url --   url of raw file download 
+        mt --  the latest version of file
+        rawdir -- the directory to save download file
+        '''
         filename = url.rsplit('/',1)[1].strip().replace('.tsv.gz','')
 
         savename = '{}_{}_{}.tsv.gz'.format(filename,mt.replace('.','*'),today)
 
-        storefiledisease = pjoin(rawdir,savename)
+        savefilepath = pjoin(rawdir,savename)
 
-        command = 'wget -O {} {}'.format(storefiledisease,url)
+        command = 'wget -O {} {}'.format(savefilepath,url)
 
         os.popen(command)
 
         # gunzip file
-        gunzip = 'gunzip {}'.format(storefiledisease)
+        gunzip = 'gunzip {}'.format(savefilepath)
 
         os.popen(gunzip)
 
-        return storefiledisease.rsplit('.gz',1)[0].strip()
+        return savefilepath.rsplit('.gz',1)[0].strip()
 
-    def tsv(self,filedisease,fileversion):
-
+    def disease_info(self,savefilepath,fileversion):
+        '''
+        this function is set parser disease_info 
+        '''
         colname = 'disgenet.disgene.curated'
 
+        # before insert ,truncate collection
         delCol('mydb_v1',colname)
 
         col = self.db.get_collection(colname)
         
+        col.ensure_index([('diseaseId',1),])
+        col.ensure_index([('geneId',1),])
+        col.ensure_index([('diseaseId',1),('geneId',1)])
+
         col.insert({'dataVersion':fileversion,'dataDate':self.date,'colCreated':today,'file':'all_gene_disease_pmid_associations'})
 
-        tsvfile = open(filedisease)
+        #--------------------------------------------------------------------------------------------------------------------------------------------------
+        tsvfile = open(savefilepath)
 
         dis_aso_type = constance(db='disgenet_aso_type')
 
@@ -219,10 +255,12 @@ class disgenet_parser(object):
             n += 1
 
 class dbMap(object):
-
-    #class introduction
-
+    '''
+    this class is set to map ncbi gene id to other db
+    '''
     def __init__(self):
+
+        super(dbMap,self).__init__()
 
         import commap
 
@@ -278,26 +316,32 @@ class dbMap(object):
 
         print 'hgncSymbol2disgenetDiseaseID',len(output)
 
-        with open('./hgncSymbol2disgenetDiseaseID.json','w') as wf:
-            json.dump(output,wf,indent=8)
+        # with open('./hgncSymbol2disgenetDiseaseID.json','w') as wf:
+        #     json.dump(output,wf,indent=8)
 
         return (hgncSymbol2disgenetDiseaseID,'diseaseId')
 
+class dbFilter(object):
+
+    '''this class is set to filter part field of data in collections  in mongodb '''
+
+    def __init__(self, arg):
+        super(dbFilter, self).__init__()
+        self.arg = arg
+        
 def main():
 
     modelhelp = model_help.replace('&'*6,'DisGeNET').replace('#'*6,'disgenet')
 
-    funcs = (downloadData,extractData,updateData,selectData,dbMap,disgenet_disease_store)
+    funcs = (downloadData,extractData,updateData,selectData,disgenet_disease_store)
 
     getOpts(modelhelp,funcs=funcs)
         
 if __name__ == '__main__':
     main()
     # downloadData(redownload=True)
-    # filedisease ='/home/user/project/dbproject/mydb_v1/disgenet_disease/dataraw/all_gene_disease_pmid_associations_5*0_171228085059.tsv'
-    # extractData(filedisease,'171228085059') 
-    man = dbMap()
-    man.dbID2hgncSymbol()
+    # savefilepath ='/home/user/project/dbproject/mydb_v1/disgenet_disease/dataraw/all_gene_disease_pmid_associations_5*0_171228085059.tsv'
+    # extractData(savefilepath,'171228085059') 
      # man.mapping()
   
  

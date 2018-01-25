@@ -4,7 +4,7 @@
 # author:wuling
 # emai:ling.wu@myhealthgene.com
 
-#this model set  to xxxxxx
+#this model set  to download ,parser(extract,satndar,insert) and update dgidb drug data from dgidb api site
 
 import sys
 sys.path.append('../')
@@ -23,30 +23,12 @@ model_name = psplit(os.path.abspath(__file__))[1]
 log_path = pjoin(dgidb_drug_model,'dgidb_drug.log')
 
 # main code
-
-def downloadOne(url,page,per_page,name,mt,rawdir):
-
-    _url = url.replace('[count]',str(per_page)).replace('[page]',str(page+1))
-
-    _page = requests.get(_url).content
-
-    _json = json.loads(_page)
-
-    savename = '{}_{}_{}_{}.json'.format(name,str(page+1),mt,today)
-
-    storefilepath = pjoin(rawdir,savename)
-
-    with open(storefilepath,'w') as wf:
-
-        json.dump(_json,wf,indent=8)
-
 def downloadData(redownload = False):
     '''
     this function is to download the raw data from go dgidb FTP WebSite
     args:
     redownload-- default False, check to see if exists an old edition before download
                        -- if set to true, download directly with no check
-    rawdir-- the directory to save download file
     '''
     if  not redownload:
 
@@ -58,12 +40,16 @@ def downloadData(redownload = False):
     if redownload or not existgoiFle or  choice == 'y':
 
         rawdir = pjoin(dgidb_drug_raw,'drug_{}'.format(today))
+
         createDir(rawdir)
 
-        process = dgidb_parser(today)
+        #--------------------------------------------------------------------------------------------------------------------------
+        process = parser(today)
 
+        # 1. get dgidb drug api version
         mt = process.getMt()
 
+        # 2.get dgidb drug and gene api link
         download_urls = process.getAPI()
 
         key_name = {'drug_url':'dgidb_drug','inter_url':'dgidb_interaction'}
@@ -75,44 +61,49 @@ def downloadData(redownload = False):
             total_pages = val[1].get('total_pages')
             total_count = val[1].get('total_count')
 
-            func = lambda x : downloadOne(url,x,per_page,key_name[key],mt,rawdir)
+            # 3. download drug and interaction  from api 
+            func = lambda x : process.getOne(url,x,per_page,key_name[key],mt,rawdir)
 
             multiProcess(func,list(range(int(total_pages))),size=50)
-
+    #--------------------------------------------------------------------------------------------------------------------
+    #  generate .log file in current  path
     if not os.path.exists(log_path):
 
         with open(log_path,'w') as wf:
             json.dump({'dgidb_drug':[(mt,today,model_name)]},wf,indent=8)
 
     print  'datadowload completed !'
-
+    #--------------------------------------------------------------------------------------------------------------------
+    # return filepaths to extract 
     filepaths = [pjoin(rawdir,filename) for filename in listdir(rawdir)]
 
     return (filepaths,today)
 
 def extractData(filepaths,date):
 
-    fileversion =psplit(filepaths[0])[1].rsplit('_',1)[0].strip().rsplit('_',1)[1].strip()
+    '''
+    this function is set to distribute all filepath to parser to process
+    args:
+    filepaths -- all filepaths to be parserd
+    date -- the date of  data download
+    '''
+    # 1. distribute filepaths for parser
+    drug_info_paths = [path for path in filepaths if psplit(path)[1].strip().startswith('dgidb_drug')]
 
-    process = dgidb_parser(date)
+    drug_gene_paths = [path for path in filepaths if psplit(path)[1].strip().startswith('dgidb_interaction')]
 
-    drugpaths,interpaths = [],[]
-
-    for filepath in filepaths:
+    # 2. parser filepaths step by step
+    process = parser(date)
     
-        filename = psplit(filepath)[1].strip()
+    # --------------------------------dgidb.drug.info-------------------------------------------------------------------------
+    process.drug_info(drug_info_paths)
 
-        if filename.startswith('dgidb_drug'):
+    # --------------------------------dgidb.drug.gene-------------------------------------------------------------------------
+    process.drug_gene(drug_gene_paths)
 
-            drugpaths.append(filepath)
+    print 'extract and insert complete '
 
-        elif filename.startswith('dgidb_interaction'):
-
-            interpaths.append(filepath)
-
-    process.info(drugpaths,fileversion)
-
-    process.gene(interpaths,fileversion)
+    # 3. bkup all collections
 
     colhead = 'dgidb.drug'
 
@@ -126,7 +117,7 @@ def updateData(insert=False,_mongodb='../_mongodb/'):
 
     dgidb_drug_log = json.load(open(log_path))
 
-    process = dgidb_parser(today)
+    process = parser(today)
 
     mt = process.getMt()
 
@@ -144,22 +135,37 @@ def updateData(insert=False,_mongodb='../_mongodb/'):
             json.dump(dgidb_drug_log,wf,indent=8)
 
         print  '{} \'s new edition is {} '.format('dgidb_drug',mt)
+
+        return 'update successfully'
         
     else:
 
         print  '{} {} is the latest !'.format('dgidb_drug',mt)
 
-def selectData():
+        return 'new version is\'t detected'
 
-    #function introduction
-    #args:
-    
-    return
-class dgidb_parser(object):
-    """docstring for dgidb_parser"""
+def selectData(querykey = 'chembl_id',queryvalue='1'):
+    '''
+    this function is set to select data from mongodb
+    args:
+    querykey -- a specified field in database
+    queryvalue -- a specified value for a specified field in database
+    '''
+    conn = MongoClient('127.0.0.1', 27017 )
+
+    db = conn.get_database('mydb_v1')
+
+    colnamehead = 'dgidb.'
+
+    dataFromDB(db,colnamehead,querykey,queryvalue=None)
+
+class parser(object):
+    '''
+    this class is set to parser all raw file to extract content we need and insert to mongodb
+    '''
     def __init__(self, date):
 
-        super(dgidb_parser, self).__init__()
+        super(parser, self).__init__()
 
         conn = MongoClient('localhost',27017)
 
@@ -170,7 +176,9 @@ class dgidb_parser(object):
         self.db = db
 
     def getMt(self):
-
+        '''
+        this function is set to get the latest version of dgidb drug api version from dgidb api web site
+        '''
         web = requests.get(dgidb_api_web,headers=headers,verify=False)
 
         soup = bs(web.content,'lxml')
@@ -184,7 +192,9 @@ class dgidb_parser(object):
         return mt
 
     def getAPI(self):
-
+        '''
+        this function is set to get dgidb drug and gene api link
+        '''
         web = requests.get(dgidb_api_web,headers=headers,verify=False)
 
         soup = bs(web.content,'lxml')
@@ -215,7 +225,6 @@ class dgidb_parser(object):
         print 'drug_url : ',drug_url
 
         #---------------------------------------------------------------------------------------------------------------------------------
-
         inter = soup.find(attrs={'id':'search-interactions'})
 
         inter_get = inter.find(text='GET')
@@ -242,23 +251,57 @@ class dgidb_parser(object):
 
         return {'drug_url':(drug_url,drug_meta),'inter_url':(inter_url,inter_meta)}
 
-    def info(self,filepaths,fileversion):
+    def getOne(self,url,page,per_page,name,mt,rawdir):
+
+        '''
+        this function is set to download drug and gene json file from api  for a given url
+        '''
+        _url = url.replace('[count]',str(per_page)).replace('[page]',str(page+1))
+
+        _page = requests.get(_url).content
+
+        _json = json.loads(_page)
+
+        savename = '{}_{}_{}_{}.json'.format(name,str(page+1),mt,today)
+
+        storefilepath = pjoin(rawdir,savename)
+
+        with open(storefilepath,'w') as wf:
+
+            json.dump(_json,wf,indent=8)
+
+    def drug_info(self,filepaths):
+        '''
+        this function is set parser gene_info 
+        '''
+        print '+'*50
 
         colname = 'dgidb.drug.info'
 
+        # before insert ,truncate collection
         delCol('mydb_v1',colname)
 
         info_col = self.db.get_collection(colname)
-        
-        info_col.insert({'dataVersion':fileversion,'dataDate':self.date,'colCreated':today,'file':'dgidb_drug'})
 
-        # reocords keys include [u'name', u'chembl_id', u'immunotherapy', u'alias', u'anti_neoplastic', u'fda_approved']
+        info_col.ensure_index([('chembl_id',1),])
+        #----------------------------------------------------------------------------------------------------------------------
 
         page_num = 0
 
         drug_num = 0 
 
         for filepath in filepaths:
+
+            filename = psplit(filepath)[1].strip()
+
+            fileversion = filename.rsplit('_',1)[0].strip().rsplit('_',1)[1].strip()
+
+            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            # insert version info 
+            if not info_col.find_one({'colCreated':{'$exists':True}}):
+                info_col.insert({'dataVersion':fileversion,'dataDate':self.date,'colCreated':today,'file':'dgidb_drug'})
+
+        # reocords keys include [u'name', u'chembl_id', u'immunotherapy', u'alias', u'anti_neoplastic', u'fda_approved']
 
             jsonfile = json.loads((open(filepath)).read())
 
@@ -278,24 +321,41 @@ class dgidb_parser(object):
 
         print 'drug_num',drug_num
 
-    def gene(self,filepaths,fileversion):
+    def drug_gene(self,filepaths):
+        '''
+        this function is set parser drug_gene 
+        '''
+        print '+'*50
 
         gene_colname = 'dgidb.drug.gene'
 
+        # before insert ,truncate collection
         delCol('mydb_v1',gene_colname)
 
         gene_col = self.db.get_collection(gene_colname)
-        
-        gene_col.insert({'dataVersion':fileversion,'dataDate':self.date,'colCreated':today,'file':'dgidb_interation'})
+        gene_col.ensure_index([('chembl_id',1),])
+        gene_col.ensure_index([('entrez_id',1),])
+        gene_col.ensure_index([('chembl_id',1),('entrez_id',1)])
+        #----------------------------------------------------------------------------------------------------------------------
 
         page_num = 0
 
-        inter_num = 0
+        drug_num = 0 
 
         dgidb_type_implication = constance('dgidb')
 
-        # [u'entrez_id', u'sources', u'chembl_id', u'drug_name', u'publications', u'id', u'gene_name', u'interaction_types']
         for filepath in filepaths:
+
+            filename = psplit(filepath)[1].strip()
+
+            fileversion = filename.rsplit('_',1)[0].strip().rsplit('_',1)[1].strip()
+
+            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            # insert version info 
+            if not gene_col.find_one({'colCreated':{'$exists':True}}):
+                gene_col.insert({'dataVersion':fileversion,'dataDate':self.date,'colCreated':today,'file':'dgidb_interation'})
+
+            # [u'entrez_id', u'sources', u'chembl_id', u'drug_name', u'publications', u'id', u'gene_name', u'interaction_types']
 
             jsonfile = json.loads((open(filepath)).read())
 
@@ -326,11 +386,13 @@ class dgidb_parser(object):
         print 'inter_num',inter_num
 
 class dbMap(object):
-
-    #class introduction
-
+    '''
+    this class is set to map dgidb drug id to other db
+    '''
     def __init__(self):
 
+        super(dbMap,self).__init__()
+        
         import commap
 
         from commap import comMap
@@ -347,7 +409,7 @@ class dbMap(object):
 
     def dbID2hgncSymbol(self):
         '''
-        this function is to create a mapping relation between disgenet disease id  with HGNC Symbol
+        this function is to create a mapping relation between dgidb  drug  id(chembl id)  with HGNC Symbol
         '''
         # because disgenet gene id  is entrez id 
         entrez2symbol = self.process.entrezID2hgncSymbol()
@@ -385,16 +447,18 @@ class dbMap(object):
 
         print 'hgncSymbol2dgidbDrugID',len(output)
 
-        with open('./hgncSymbol2dgidbDrugID.json','w') as wf:
-            json.dump(output,wf,indent=8)
+        # with open('./hgncSymbol2dgidbDrugID.json','w') as wf:
+        #     json.dump(output,wf,indent=8)
 
         return (hgncSymbol2dgidbDrugID,'chembl_id')
 
-class filter(object):
-    """docstring for gene_topic"""
+class dbFilter(object):
+
+    '''this class is set to filter part field of data in collections  in mongodb '''
+
     def __init__(self):
 
-        super(filter, self).__init__()
+        super(dbFilter, self).__init__()
     
     def gene_topic_info(self,doc):
 
@@ -410,51 +474,12 @@ class filter(object):
         
 def main():
 
-    modelhelp = 'help document'
+    modelhelp = model_help.replace('&'*6,'DGIDB_DRUG').replace('#'*6,'dgidb_drug')
 
-    funcs = (downloadData,extractData,updateData,selectData,dbMap,dgidb_drug_store)
+    funcs = (downloadData,extractData,updateData,selectData,dgidb_drug_store)
 
     getOpts(modelhelp,funcs=funcs)
         
 if __name__ == '__main__':
 
     main()
-    # updateData()
-    # downloadData(redownload=True)
-    # rawdir  ='/home/user/project/dbproject/mydb_v1/dgidb_drug/dataraw/drug_180104152534/'
-
-    # date = '180104152534'
-
-    # filepaths = [pjoin(rawdir,filename) for filename in listdir(rawdir)]
-
-    # extractData(filepaths,date)
-
-    # f = open('/home/user/project/dbproject/mydb_v1/dgidb_drug/dataraw/dgidb_drug_v3.0.1_180104135642.json').read()
-    # print f.count("name")
-#     man = dbMap()
-#     man.dbID2hgncSymbol()
-
-#     doc = {
-#     "entrez_id" : 3326,
-#     "drug_name" : "RETASPIMYCIN",
-#     "chembl_id" : "CHEMBL1184904",
-#     "sources" : [
-#         "MyCancerGenome",
-#         "TdgClinicalTrial"
-#     ],
-#     "publications" : [ ],
-#     "id" : "26f9aa35-c529-412d-a7fc-33795930f9af",
-#     "gene_name" : "HSP90AB1",
-#     "interaction_types" : [
-#         {
-#             "type_implication" : "In inhibitor interactions, the drug binds to a target and decreases its expression or activity. Most interactions of this class are enzyme inhibitors, which bind an enzyme to reduce enzyme activity.  Wikipedia - Enzyme Inhibitor",
-#             "type" : "inhibitor"
-#         }
-#     ]
-# }
-    
-#     man = filter()
-#     print man.gene_topic_gene(doc)
-
-
-# drug_api http://dgidb.orghttp://dgidb.org/api/v2/drugs

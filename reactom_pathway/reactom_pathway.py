@@ -12,7 +12,7 @@ sys.setdefaultencoding = ('utf-8')
 from share import *
 from config import *  
 
-__all__ = ['downloadData','extractData','standarData','insertData','updateData','selectData']
+__all__ = ['downloadData','extractData','updateData','selectData']
 
 version  = 1.0
 
@@ -21,16 +21,15 @@ model_name = psplit(os.path.abspath(__file__))[1]
 (reactom_pathway_model,reactom_pathway_raw,reactom_pathway_store,reactom_pathway_db,reactom_pathway_map) = buildSubDir('reactom_pathway')
 
 log_path = pjoin(reactom_pathway_model,'reactom_pathway.log')
-# main code
 
-def downloadData(redownload = False,rawdir = None):
+# main code
+def downloadData(redownload = False ):
 
     '''
     this function is to download the raw data from reactom web
     args:
     redownload-- default False, check to see if exists an old edition before download
                        -- if set to true, download directly with no check
-    rawdir-- the directory to save download file
     '''
     if  not redownload:
 
@@ -41,101 +40,104 @@ def downloadData(redownload = False,rawdir = None):
 
     if redownload or not existreactomFile or  choice == 'y':
 
-        if not rawdir:
+        rawdir = pjoin(reactom_pathway_raw,'pathway_{}'.format(today))
 
-            rawdir = pjoin(reactom_pathway_raw,'pathway_{}'.format(today))
+        createDir(rawdir)
 
-            createDir(rawdir)
+        process = parser(today)
 
-        process = reactom_parser(today)
+        # 1.get all urls of raw files
+        filename_urlmt = process.getUrl() 
 
-        # get mt for every file,store in reactomfile_mt
-        newest_mt = process.getMt()
+        # 2. download all path graph.json , path json, txt, txt.zip
+        func  = lambda x:process.getOne(x,rawdir)
 
-        pathurl_mt,other_mt = process.getUrl() 
+        multiProcess(func,filename_urlmt.values(),size=50)
 
-        # download graph file
-        func  = lambda x:process.wget(x,pathurl_mt[x],rawdir)
-
-        multiProcess(func,pathurl_mt.keys(),size=50)
-
-        # download other file
-        for url,mt in other_mt.items():
-            process.wget(url,mt,rawdir)
-
-    # create log file
+    #--------------------------------------------------------------------------------------------------------------------
+    #  3. generate .log file in current  path
     if not os.path.exists(log_path):
-
+        log = dict()
+        for filename,urlmt in filename_urlmt.items():
+            log[filename] = list()
+            log[filename].append([urlmt.get('mt'),today,model_name])
         with open('./reactom_pathway.log','w') as wf:
-            json.dump({'reactom_pathway':[(newest_mt,today,model_name)]},wf,indent=8)
+            json.dump(log,wf,indent=8)
 
     print  'datadowload completed !'
+    #--------------------------------------------------------------------------------------------------------------------
+    # 4. generate .files file in database
+    update_file_heads =dict()
 
+    for filename in listdir(rawdir):
+
+        head = filename.split('_213',1)[0].strip()
+        tail = filename.rsplit('_',1)[1].split('.',1)[1]
+
+        update_file_heads[head + tail] = pjoin(rawdir,filename)
+
+    with open(pjoin(reactom_pathway_db,'pathway_{}.files'.format(today)),'w') as wf:
+        json.dump(update_file_heads,wf,indent=2)
+    #--------------------------------------------------------------------------------------------------------------------
+    # return filepaths to extract 
     filepaths = [pjoin(rawdir,filename) for filename in rawdir]
 
     return (filepaths,today)
 
 def extractData(filepaths,date):
+    '''
+    this function is set to distribute all filepath to parser to process
+    args:
+    filepaths -- all filepaths to be parserd
+    date -- the date of  data download
+    '''
+    #--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    # 1. distribute filepaths for parser
+    pathway_info_paths = [path for path in filepaths if psplit(path)[1].split('_',1)[0] in ['ReactomPathways','pathway2summation']]
 
-    rawdirname = psplit(psplit(filepaths[0])[0])[1].strip()
+    pathway_gene_paths = [path for path in filepaths if psplit(path)[1].startswith('NCBI2Reactome_All_Levels_')]
 
-    fileversion = rawdirname.split('_')[1].strip()
+    pathway_eventpmid_paths = [path for path in filepaths if psplit(path)[1].startswith('ReactionPMIDS')]
 
-    process = reactom_parser(date)
+    pathway_interaction_paths = [path for path in filepaths if psplit(path)[1].startswith('FIsInGene_')]
 
-    graphpaths,jsonpaths,infopaths,subpathwaypaths,genepaths,interactionpaths,eventpmidpaths = [],[],[],[],[],[],[]
+    pathway_subpathway_paths = [path for path in filepaths if psplit(path)[1].startswith('ReactomePathwaysRelation_')]
 
-    for filepath in filepaths:
+    pathway_graph_paths = [path for path in filepaths if psplit(path)[1].endswith('.graph.json')]
 
-        filename = psplit(filepath)[1].strip()
+    pathway_json_paths = [path for path in filepaths if not psplit(path)[1].endswith('.graph.json') and psplit(path)[1].endswith('.json') ]
 
-        if filename.endswith('.graph.json'):
-            graphpaths.append(filepath)
-
-        elif filename.endswith('.json'):
-            jsonpaths.append(filepath)
-
-        elif filename.startswith('ReactomPathways_') or filename.startswith('pathway2summation_'):
-            infopaths.append(filepath)
-
-        elif filename.startswith('ReactomePathwaysRelation_'):
-            subpathwaypaths.append(filepath)
-
-        elif filename.startswith('NCBI2Reactome_All_Levels_'):
-            genepaths.append(filepath)
-
-        elif filename.startswith('FIsInGene_'):
-            interactionpaths.append(filepath)
-
-        elif filename.startswith('ReactionPMIDS'):
-            eventpmidpaths.append(filepath)
+    #--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    # 2. parser filepaths step by step
+    process = parser(date)    
 
     # reactom.pathway.info (pathway2summation and reactompathway)
-    all_paths =process.info(infopaths,fileversion)
+    all_paths =process.pathway_info(pathway_info_paths)
 
     # reactom.pathway.entry
-    all_nodes = process.entry(graphpaths,fileversion)
+    all_nodes = process.pathway_entry(pathway_graph_paths)
 
     # reactom.pathway.reaction
-    all_events = process.event(graphpaths,eventpmidpaths,fileversion)
+    all_events = process.pathway_event(pathway_graph_paths,pathway_eventpmid_paths)
 
     # add subpathway to entry and reaction
-    process.pathsub(graphpaths,fileversion,all_paths,all_nodes,all_events)
+    process.pathway_supplement(pathway_graph_paths,all_paths,all_nodes,all_events)
 
     # add reactom.pathway.subpathway 
-    process.subpathway(subpathwaypaths,fileversion)
+    process.pathway_gene(pathway_gene_paths)
 
     # add reactom.pathway.subpathway 
-    process.gene(genepaths,fileversion)
+    process.pathway_subpath(pathway_subpathway_paths)
 
     # add reactom.pathway.interaction 
-    process.interaction(interactionpaths,fileversion)
+    process.pathway_interaction(pathway_interaction_paths)
 
     # add reactom.pathway.graph 
-    process.graph(jsonpaths,fileversion)
+    process.pathway_graph(pathway_json_paths)
 
+    #--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
     # bkup collection in local
-    _mongodb = pjoin(reactom_pathway_db,rawdirname)
+    _mongodb = pjoin(reactom_pathway_db,'pathway_{}'.format(date))
 
     colhead = 'reactom.pathway'
 
@@ -145,46 +147,68 @@ def extractData(filepaths,date):
 
     return (filepaths,date)
 
-def updateData(insert=False,_mongodb='../_mongodb/'):
+def updateData(insert=False):
+
+    '''
+    this function is set to update all file in log
+    '''
 
     reactom_pathway_log = json.load(open(log_path))
 
-    rawdir = pjoin(reactom_pathway_raw,'pathway_{}'.format(today))
+    updated_rawdir = pjoin(reactom_pathway_raw,'pathway_{}'.format(today))
 
-    process = reactom_parser(today)
+    process = parser(today)
 
-    newest_mt = process.getMt()
+    filename_urlmt = process.getUrl()
 
     new = False
 
-    if newest_mt != reactom_pathway_log['reactom_pathway'][-1][0]:
+    new_urlmts = list()
 
-        createDir(rawdir)
+    for filename,urlmt in filename_urlmt.items():
 
-        new = True 
+        mt = urlmt.get('mt')
 
-        filepaths,version = downloadData(redownload = True)
+        if mt != reactom_pathway_log.get(filename)[-1][0]:
 
-        extractData(filepaths,version)
+            new = True 
 
-        reactom_pathway_log['reactom_pathway'].append((newest_mt,today,model_name))
+            new_urlmts.append(urlmt)
 
-        print  '{} \'s new edition is {} '.format('reactom_pathway',newest_mt)
+            reactom_pathway_log[filename].append([mt,today,model_name])
+            
+            print  '{} \'s new edition is {} '.format(filename,mt)
 
-        bakeupCol('reactom_pathway_{}'.format(version),'reactom_pathway',_mongodb)
+        else:
 
-    else:
-
-        print  '{} {} is the latest !'.format('reactom_pathway',newest_mt)
+            print  '{} {} is the latest !'.format(filename,mt)
 
     if new:
+
+        createDir(updated_rawdir)
+
+        func = lambda x:process.getOne(urlmt,updated_rawdir)
+
+        multiProcess(fun,new_urlmts,size=50)
 
         # create new log
         with open('./reactom_pathway.log','w') as wf:
 
             json.dump(reactom_pathway_log,wf,indent=2)
 
-def selectData(querykey = 'stId',value='R-HSA-76071'):
+        (latest_filepaths,version) = createNewVersion(reactom_pathway_raw,reactom_pathway_db,updated_rawdir,'pathway_',today)
+
+        if insert:
+
+            extractData(latest_filepaths.values(),version)
+
+        return 'update successfully'
+
+    else:
+
+        return 'new version is\'t detected'
+
+def selectData(querykey = 'path_id',value='R-HSA-76071'):
     '''
     this function is set to select data from mongodb
     args:
@@ -193,15 +217,16 @@ def selectData(querykey = 'stId',value='R-HSA-76071'):
     '''
     conn = MongoClient('127.0.0.1', 27017 )
 
-    db = conn.mydb
+    db = conn.get_database('mydb_v1')
 
     colnamehead = 'reactom_pathway'
 
     dataFromDB(db,colnamehead,querykey,queryvalue=None)
 
-
-class reactom_parser(object):
-
+class parser(object):
+    '''
+    this class is set to parser all raw file to extract content we need and insert to mongodb
+    '''
     def __init__(self,date):
 
         conn = MongoClient('localhost',27017)
@@ -212,47 +237,11 @@ class reactom_parser(object):
         
         self.date = date
 
-    def Mt(self,text,filename):
-
-        mt = text.split(filename)[1].strip().rsplit(' ',1)[0]
-
-        for sym in [' ',':','-','.json','.txt']:
-
-            mt = mt.replace(sym,'')
-
-        mt = '213' + mt
-
-        return mt
-
-    def getMt(self):
-
-        web = requests.get(reactome_download_web2)
-
-        soup = bs(web.content,'lxml')
-
-        trs = soup.select('body > table > tr ')
-
-        for tr in trs:
-
-            text = tr.text
-
-            if text.count('diagram/'):
-
-                 mt = self.Mt(text,'diagram/')
-
-        return mt
-
     def getUrl(self):
-
         '''
-        this function is to get all files update time from http://download web page
+        this function is set to get all download url of raw files
         '''
-        # diagram file
-        # for url in [reactome_download_web1,reactome_download_web2]:
-
-        pathurl_mt = dict()
-
-        other_mt = dict()
+        filename_urlmt = dict()
         #------------------------------------------------------------------------------------------------------------------------------------------------------------------
         # download R-HSA-?????.graph.json or  # download R-HSA-?????.json
         web = requests.get(reactome_download_web1)
@@ -266,9 +255,16 @@ class reactom_parser(object):
             # if filename.startswith('R-HSA') and filename.endswith('.graph'):
             if filename.startswith('R-HSA'):
 
-                mt = self.Mt(text,filename)
+                mt = text.split(filename)[1].strip().rsplit(' ',1)[0]
+                for sym in [' ',':','-','.json','.txt']:
+                    mt = mt.replace(sym,'')
+                mt = '213' + mt
+
                 key = reactome_download_web1 + filename + '.json'
-                pathurl_mt[key] = mt
+
+                name = filename + '.json'
+                filename_urlmt.update({name:{'url':key,'mt':mt}})
+
         #------------------------------------------------------------------------------------------------------------------------------------------------------------------
         # download pathway2summation,ReactomePathways,NCBI2Reactome_All_Levels,ReactomePathwaysRelation
         info_files = ['pathway2summation','ReactomePathways','NCBI2Reactome_All_Levels','ReactomePathwaysRelation','ReactionPMIDS']
@@ -283,11 +279,16 @@ class reactom_parser(object):
 
             if filename in info_files:
 
-                mt = self.Mt(text,filename)
+                mt = text.split(filename)[1].strip().rsplit(' ',1)[0]
+                for sym in [' ',':','-','.json','.txt']:
+                    mt = mt.replace(sym,'')
+                mt = '213' + mt
 
                 key = reactome_download_web2 + filename + '.txt'
 
-                other_mt[key] = mt 
+                name = filename + '.txt'
+                filename_urlmt.update({name:{'url':key,'mt':mt}})
+
         #------------------------------------------------------------------------------------------------------------------------------------------------------------------
         # download interaction file 
         web = requests.get(reactome_download_web3)
@@ -297,38 +298,32 @@ class reactom_parser(object):
         mt = li1.text.split('Version')[1].strip()
         a = li1.find(name='a')
         href = a.attrs.get('href')
-        other_mt[href] = mt
 
-        return (pathurl_mt,other_mt)
+        mt = '213' + mt
+        name = psplit(href)[1].strip()
+        filename_urlmt.update({name:{'url':href,'mt':mt}})
 
-    def wget(self,url,mt,rawdir):
+        return filename_urlmt
 
-        # filename = url.rsplit('/',1)[1].strip().replace('.graph.json','').replace('.txt','')
+    def getOne(self,urlmts,rawdir):
+
+        '''
+        this function is set to download raw file and rename  with a url and file's mt
+        '''
+        url = urlmts.get('url')
+        mt = urlmts.get('mt')
+
         filename = url.rsplit('/',1)[1].strip()
 
-        if filename.endswith('graph.json'):
+        for tail in ['.graph.json','.json','.txt','.txt.zip']:
 
-            name = filename.split('.graph.json')[0].strip()
+            if filename.endswith(tail):
 
-            savename = '{}_{}.graph.json'.format(name,mt)
+                name = filename.split(tail)[0].strip()
 
-        elif filename.endswith('.txt'):
+                savename = '{}_{}_{}_{}'.format(name,mt,today,tail)
 
-            name = filename.split('.txt')[0].strip()
-
-            savename = '{}_{}.txt'.format(name,mt)
-
-        elif filename.endswith('.json'):
-
-            name = filename.split('.json')[0].strip()
-
-            savename = '{}_{}.json'.format(name,mt)
-
-        elif filename.endswith('.txt.zip'):
-
-            name = filename.split('.txt.zip')[0].strip()
-
-            savename = '{}_{}.txt.zip'.format(name,mt)
+                break
 
         storefilepath = pjoin(rawdir,savename)
 
@@ -336,8 +331,10 @@ class reactom_parser(object):
 
         os.popen(command)
 
-    def node(self,dbId):
-
+    def getNode(self,dbId):
+        '''
+        this function is set to get a entry basic infos from reactom web site  that not in reactom.pathway.entry 
+        '''
         node_info = dict()
 
         url = 'https://reactome.org/content/detail/%s' % dbId
@@ -394,10 +391,14 @@ class reactom_parser(object):
 
         return node_info
 
-    def info(self,filepaths,fileversion):
-
+    def pathway_info(self,filepaths):
+        '''
+        this function is set parser pathway_info 
+        '''
+        print '+'*50
         info_colname = 'reactom.pathway.info'
 
+        # before insert ,truncate collection
         delCol('mydb_v1',info_colname)
 
         info_col = self.db.get_collection(info_colname)
@@ -408,15 +409,16 @@ class reactom_parser(object):
 
         for filepath in filepaths:
 
-            tsvfile = open(filepath)
-
             filename = psplit(filepath)[1].strip()
 
-            fileversion = filename.rsplit('_',1)[1].strip().split('.',1)[0].strip()
+            fileversion = filename.rsplit('_',1)[0].strip().rsplit('_',1)[1].strip()
 
-            if not info_col.find_one({'dataVersion':fileversion}):
-
+            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            # insert version info 
+            if not info_col.find_one({'colCreated':{'$exists':True}}):
                 info_col.insert({'dataVersion':fileversion,'dataDate':self.date,'colCreated':today,'file':'ReactomPathways,pathway2summation,R-HSA-??????.graph'})
+                       
+            tsvfile = open(filepath)
 
             if filename.startswith('ReactomPathways'):
 
@@ -455,22 +457,211 @@ class reactom_parser(object):
 
                 print 'reactom.pathway.info',n,path_id
 
-        # with open('./all_reactom_paths.json','w') as wf:
-        #     json.dump(all_paths,wf,indent=8)
-
         return all_paths
 
-    def entry(self,filepaths,fileversion):
+    def pathway_gene(self,filepaths):
+        '''
+        this function is set parser pathway_gene 
+        '''
+        gene_colname = 'reactom.pathway.gene'
 
+        # before insert ,truncate collection
+        delCol('mydb_v1',gene_colname)
+
+        gene_col = self.db.get_collection(gene_colname)
+
+        gene_col.ensure_index([('path_id',1),('entrez_id',1)])
+
+        #-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        filepath = filepaths[0] # only one file
+
+        filename = psplit(filepath)[1].strip()
+
+        fileversion = filename.rsplit('_',1)[0].strip().rsplit('_',1)[1].strip()
+        
+        gene_col.insert({'dataVersion':fileversion,'dataDate':self.date,'colCreated':today,'file':'NCBI2Reactome_All_Levels'})
+        #-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+        tsvfile = open(filepath)
+
+        n = 0
+
+        keys = ['entrez_id','path_id','path_link','path_name','evidence','path_org']
+
+        for line in tsvfile:
+
+            data = [i.strip() for i in line.split('\t')]
+
+            dic = dict([(key,val) for key,val in zip(keys,data)])
+
+            path_org = dic.get('path_org')
+
+            if path_org != 'Homo sapiens':
+                continue
+
+            for key in ['path_link','path_name']:
+                dic.pop(key)
+
+            gene_col.insert(dic)
+
+            n += 1
+
+            print 'reactom.pathway.gene line',n
+
+    def pathway_graph(self,filepaths):
+        '''
+        this function is set parser path_graph 
+        '''
+        graph_colname = 'reactom.pathway.graph'
+
+        # before insert ,truncate collection
+        delCol('mydb_v1',graph_colname)
+
+        graph_col = self.db.get_collection(graph_colname)
+        graph_col.ensure_index([('path_id',1)])
+        #-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        n = 0
+
+        for filepath in filepaths:
+
+            filename = psplit(filepath)[1].strip()
+
+            fileversion = filename.rsplit('_',1)[0].strip().rsplit('_',1)[1].strip()
+
+            if not graph_col.find_one({'colCreated':{'$exists':True}}): 
+                graph_col.insert({'dataVersion':fileversion,'dataDate':self.date,'colCreated':today,'file':'R-HSA-??????.json'})
+
+            #-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+            jsonfile = json.load(open(filepath))
+
+            jsonfile['path_id'] = jsonfile.pop('stableId')
+            jsonfile['path_org'] = 'Homo sapiens'
+
+            graph_col.insert(jsonfile)
+
+            n += 1
+
+            print 'reactom.pathway.graph line',n
+
+    def pathway_subpath(self,filepaths):
+
+        '''
+        this function is set parser pathway_subpath 
+        '''
+        subpathway_colname = 'reactom.pathway.subpathway'
+
+        # before insert ,truncate collection
+        delCol('mydb_v1',subpathway_colname)
+
+        subpathway_col = self.db.get_collection(subpathway_colname)
+
+        subpathway_col.ensure_index([('parent_path',1),('child_path',1)])
+        subpathway_col.ensure_index([('parent_path',1)])
+        subpathway_col.ensure_index([('child_path',1)])
+        
+        #-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        filepath = filepaths[0] # only one file
+
+        filename = psplit(filepath)[1].strip()
+
+        fileversion = filename.rsplit('_',1)[0].strip().rsplit('_',1)[1].strip()
+        
+        subpathway_col.insert({'dataVersion':fileversion,'dataDate':self.date,'colCreated':today,'file':'ReactomePathwaysRelation'})
+
+        #-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        tsvfile = open(filepath)
+
+        n = 0
+
+        for line in tsvfile:
+
+            data = [i.strip() for i in line.split('\t')]
+
+            parent_path  = data[0]
+
+            child_path = data[1]
+
+            if parent_path.startswith('R-HSA') and child_path.startswith('R-HSA'):
+
+                subpathway_col.insert(
+                    {'parent_path':parent_path,
+                    'child_path':child_path,
+                    'path_org':'Homo sapiens'})
+
+            n += 1
+
+            print 'reactom.pathway.subpathway line',n
+
+    def pathway_interaction(self,filepaths):
+        '''
+        this function is set parser pathway_interaction 
+        '''
+        interaction_colname = 'reactom.pathway.interaction'
+
+        # before insert ,truncate collection
+        delCol('mydb_v1',interaction_colname)
+
+        interaction_col = self.db.get_collection(interaction_colname)
+        interaction_col.ensure_index([('path_id',1)])
+
+        #-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        filepath = filepaths[0] # only one file
+
+        filename = psplit(filepath)[1].strip()
+
+        fileversion = filename.rsplit('_',1)[0].strip().rsplit('_',1)[1].strip()
+
+        interaction_col.insert({'dataVersion':fileversion,'dataDate':self.date,'colCreated':today,'file':'IsInGene_022717_with_annotations'})
+        #-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        
+        rawdir = psplit(filepath)[0].strip()
+
+        if filepath.endswith('.zip'):
+
+            # unzip zip file
+            unzip =  'unzip {} -d {}'.format(filepath,rawdir)
+
+            os.popen(unzip)
+
+            os.remove(filepath) # delete zip file
+
+            filepath = filepath.rsplit('.zip',1)[0].strip()
+
+            old_path = pjoin(rawdir,'FIsInGene_022717_with_annotations.txt')
+
+            os.rename(old_path,filepath)
+        #-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        tsvfile = open(filepath)
+
+        n = 0
+
+        for line in tsvfile:
+
+            if n == 0:
+                keys = [i.strip() for i in line.strip().split('\t') ]
+
+            else:
+                data = [i.strip() for i in line.strip().split('\t') ]
+                dic = dict([(key,val) for key,val in zip(keys,data)])
+
+                interaction_col.insert(dic)
+
+                print 'reactom.pathway.interaction,line',n
+
+            n += 1
+
+    def pathway_entry(self,filepaths):
+        '''
+        this function is set parser pathway_entry 
+        '''
         entry_colname = 'reactom.pathway.entry'
 
+        # before insert ,truncate collection
         delCol('mydb_v1',entry_colname)
 
         entry_col = self.db.get_collection(entry_colname)
 
         entry_col.ensure_index([('path_id',1),('entry_id',1)])
-
-        entry_col.insert({'dataVersion':fileversion,'dataDate':self.date,'colCreated':today,'file':'R-HSA-??????.graph'})
 
         all_nodes = dict()
 
@@ -478,11 +669,16 @@ class reactom_parser(object):
 
         for filepath in filepaths:
 
-            jsonfile = json.load(open(filepath))
-
             filename = psplit(filepath)[1].strip()
 
-            fileversion = filename.rsplit('_',1)[1].strip().split('.',1)[0].strip()
+            fileversion = filename.rsplit('_',1)[0].strip().rsplit('_',1)[1].strip()
+
+            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            # insert version info 
+            if not entry_col.find_one({'colCreated':{'$exists':True}}):
+                entry_col.insert({'dataVersion':fileversion,'dataDate':self.date,'colCreated':today,'file':'R-HSA-??????.graph'})
+
+            jsonfile = json.load(open(filepath))
 
             path_id = jsonfile.get('stId')
 
@@ -519,36 +715,40 @@ class reactom_parser(object):
 
             print 'reactom.pathway.entry file',n
 
-        # with open('./all_reactom_nodes.json','w') as wf:
-        #     json.dump(all_nodes,wf,indent=8)
-
         return all_nodes
 
-    def event(self,filepaths,pmidpaths,fileversion):
+    def pathway_event(self,filepaths,pmidpaths):
 
+        '''
+        this function is set parser pathway_event 
+        '''
         event_colname = 'reactom.pathway.event'
 
+        # before insert ,truncate collection
         delCol('mydb_v1',event_colname)
 
         event_col = self.db.get_collection(event_colname)
 
         event_col.ensure_index([('path_id',1),('event_id',1)])
-
-        if not event_col.find_one({'dataVersion':fileversion}):
-
-            event_col.insert({'dataVersion':fileversion,'dataDate':self.date,'colCreated':today,'file':'R-HSA-??????.graph'})
-
+        event_col.ensure_index([('event_id',1),])
+        #-----------------------------------------------------------------------------------------------------------------------------------------------------------
         all_events = dict()
 
         n = 0
 
         for filepath in filepaths:
 
-            jsonfile = json.load(open(filepath))
-
             filename = psplit(filepath)[1].strip()
 
-            fileversion = filename.rsplit('_',1)[1].strip().split('.',1)[0].strip()
+            fileversion = filename.rsplit('_',1)[0].strip().rsplit('_',1)[1].strip()
+
+            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            # insert version info 
+            if not event_col.find_one({'dataVersion':fileversion}):
+
+                event_col.insert({'dataVersion':fileversion,'dataDate':self.date,'colCreated':today,'file':'R-HSA-??????.graph'})
+
+            jsonfile = json.load(open(filepath))
 
             path_id = jsonfile.get('stId')
 
@@ -580,9 +780,8 @@ class reactom_parser(object):
             n += 1
 
             print 'reactom.pathway.event',n
-
+        #-----------------------------------------------------------------------------------------------------------------------------------------------------------
         pmidpath = pmidpaths[0]
-
         reaction_pmid_file = open(pmidpath)
 
         n  = 0
@@ -602,19 +801,21 @@ class reactom_parser(object):
 
             print 'reactom.pathway.event.pmid line',n
 
-        # with open('./all_reactom_events.json','w') as wf:
-        #     json.dump(all_events,wf,indent=8)
-
         return all_events
 
-    def pathsub(self,filepaths,fileversion,all_paths,all_nodes,all_events):
+    def pathway_supplement(self,filepaths,all_paths,all_nodes,all_events):
 
+        '''
+        this function is set to  supplement the path info ,entry,events  with subpathway infos
+
+        '''
         info_col = self.db.get_collection('reactom.pathway.info')
 
         entry_col = self.db.get_collection('reactom.pathway.entry')
 
         event_col = self.db.get_collection('reactom.pathway.event')
 
+        #------------------------------------------------------------------------------------------------------------------------------------------
         n = 0
 
         notin_all_nodes = list()
@@ -631,12 +832,13 @@ class reactom_parser(object):
 
             subpathways = jsonfile.get('subpathways')
 
+            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
             if subpathways:
 
                 for subpathway in subpathways:
 
                     subpath_id = subpathway.get('stId') # all subpathway id included in pathway.info
-                    print 'subpath_id',subpath_id
+                    # print 'subpath_id',subpath_id
 
                     info_col.update(
                         {'path_id':path_id},
@@ -652,11 +854,8 @@ class reactom_parser(object):
 
                             event_info  = all_events.get(event_id)
 
-                            if event_info:
-
+                            if event_info: # "event_id" is truely a event id
                                 # bcause subpath also contain this event .so add to pathway.event
-
-                                # if not event_col.find_one({'path_id':subpath_id,'event_id':event_id}):
                                 [event_info.pop(key) for key  in ['_id','path_id','event_id'] if key in event_info]
 
                                 event_col.update(
@@ -679,18 +878,17 @@ class reactom_parser(object):
                                     node_info = all_nodes.get(node_id)
 
                                     if not node_info:
-                                        node_info = self.node(node_id)
+                                        node_info = self.getNode(node_id)
                                         notin_all_nodes.append(node_id)
 
                                     [node_info.pop(key) for key  in ['_id','path_id','entry_id'] if key in node_info]
-
                                     entry_col.update(
                                         {'path_id':subpath_id,'entry_id':node_id},
                                         {'$set':node_info},
                                         True,
                                         False)
 
-                            else:
+                            else: # "event_id" is truely a path_id 
                                 event_id = 'R-HSA-{}'.format(event_id)
                                 path_id = event_id
 
@@ -729,7 +927,7 @@ class reactom_parser(object):
                                             node_info = all_nodes.get(node_id)
 
                                             if not node_info:
-                                                node_info = self.node(node_id)
+                                                node_info = self.getNode(node_id)
                                                 notin_all_nodes.append(node_id)
                                             [node_info.pop(key) for key  in ['_id','path_id','entry_id'] if key in node_info]
 
@@ -741,167 +939,17 @@ class reactom_parser(object):
 
                                 else:
                                     print path_id,'not in path_id'
-
             n += 1
+
             print 'reactom.pathway.subpathway',n
 
-        # notin_all_nodes = list(set(notin_all_nodes))
-        # print notin_all_nodes
-        # print len(notin_all_nodes)
-
-        # with open('./notin_all_nodes.json','w') as wf:
-        #     json.dump(notin_all_nodes,wf,indent=2)
-
-    def subpathway(self,filepaths,fileversion):
-
-        subpathway_colname = 'reactom.pathway.subpathway'
-
-        delCol('mydb_v1',subpathway_colname)
-
-        subpathway_col = self.db.get_collection(subpathway_colname)
-
-        subpathway_col.insert({'dataVersion':fileversion,'dataDate':self.date,'colCreated':today,'file':'ReactomePathwaysRelation'})
-
-        filepath = filepaths[0] # only one file
-
-        tsvfile = open(filepath)
-
-        n = 0
-
-        for line in tsvfile:
-
-            data = [i.strip() for i in line.split('\t')]
-
-            parent_path  = data[0]
-
-            child_path = data[1]
-
-            if parent_path.startswith('R-HSA') and child_path.startswith('R-HSA'):
-
-                subpathway_col.insert(
-                    {'parent_path':parent_path,
-                    'child_path':child_path,
-                    'path_org':'Homo sapiens'})
-
-            n += 1
-
-            print 'reactom.pathway.subpathway line',n
-
-    def gene(self,filepaths,fileversion):
-
-        gene_colname = 'reactom.pathway.gene'
-
-        delCol('mydb_v1',gene_colname)
-
-        gene_col = self.db.get_collection(gene_colname)
-
-        gene_col.insert({'dataVersion':fileversion,'dataDate':self.date,'colCreated':today,'file':'NCBI2Reactome_All_Levels'})
-
-        filepath = filepaths[0] # only one file
-
-        tsvfile = open(filepath)
-
-        n = 0
-
-        keys = ['entrez_id','path_id','path_link','path_name','evidence','path_org']
-
-        for line in tsvfile:
-
-            data = [i.strip() for i in line.split('\t')]
-
-            dic = dict([(key,val) for key,val in zip(keys,data)])
-
-            path_org = dic.get('path_org')
-
-            if path_org != 'Homo sapiens':
-                continue
-
-            for key in ['path_link','path_name']:
-                dic.pop(key)
-
-            gene_col.insert(dic)
-
-            n += 1
-            print 'reactom.pathway.gene line',n
-
-
-    def interaction(self,filepaths,fileversion):
-
-        interaction_colname = 'reactom.pathway.interaction'
-
-        delCol('mydb_v1',interaction_colname)
-
-        interaction_col = self.db.get_collection(interaction_colname)
-
-        interaction_col.insert({'dataVersion':fileversion,'dataDate':self.date,'colCreated':today,'file':'IsInGene_022717_with_annotations'})
-
-        filepath = filepaths[0] # only one file
-
-        rawdir = psplit(filepath)[0].strip()
-
-        if filepath.endswith('.zip'):
-
-            # gunzip zip file
-            unzip =  'unzip {} -d {}'.format(filepath,rawdir)
-
-            os.popen(unzip)
-
-        filepath = filepath.rsplit('.zip',1)[0].strip()
-        
-        # os.remove(filepath)
-
-        tsvfile = open(filepath)
-
-        n = 0
-
-        for line in tsvfile:
-
-            if n == 0:
-                keys = [i.strip() for i in line.strip().split('\t') ]
-
-            else:
-                data = [i.strip() for i in line.strip().split('\t') ]
-                dic = dict([(key,val) for key,val in zip(keys,data)])
-
-                interaction_col.insert(dic)
-
-                print 'reactom.pathway.interaction,line',n
-
-            n += 1
-
-    def graph(self,filepaths,fileversion):
-
-        graph_colname = 'reactom.pathway.graph'
-
-        delCol('mydb_v1',graph_colname)
-
-        graph_col = self.db.get_collection(graph_colname)
-
-        graph_col.insert({'dataVersion':fileversion,'dataDate':self.date,'colCreated':today,'file':'R-HSA-??????.json'})
-
-        n = 0
-
-        for filepath in filepaths:
-
-            jsonfile = json.load(open(filepath))
-
-            filename = psplit(filepath)[1].strip()
-
-            fileversion = filename.rsplit('_',1)[1].strip().split('.',1)[0].strip()
-
-            jsonfile['path_id'] = jsonfile.pop('stableId')
-            jsonfile['path_org'] = 'Homo sapiens'
-
-            graph_col.insert(jsonfile)
-
-            print 'reactom.pathway.graph line',n
-
-
 class dbMap(object):
-
-    #class introduction
-
+    '''
+    this class is set to map ncbi gene id to other db
+    '''
     def __init__(self):
+
+        super(dbMap,self).__init__()
 
         import commap
 
@@ -957,25 +1005,33 @@ class dbMap(object):
             
         print 'hgncSymbol2reactomPathID',len(output)
 
-        with open('./hgncSymbol2reactomPathID.json','w') as wf:
-            json.dump(output,wf,indent=8)
+        # with open('./hgncSymbol2reactomPathID.json','w') as wf:
+        #     json.dump(output,wf,indent=8)
 
         return (hgncSymbol2reactomPathID,'path_id')
+        
+class dbFilter(object):
 
+    '''this class is set to filter part field of data in collections  in mongodb '''
+
+    def __init__(self, arg):
+        super(dbFilter, self).__init__()
+        self.arg = arg
+        
 def main():
 
     modelhelp = model_help.replace('&'*6,'Reactom_Pathway').replace('#'*6,'reactom_pathway')
 
-    funcs = (downloadData,extractData,updateData,selectData,dbMap,reactom_pathway_store)
+    funcs = (downloadData,extractData,updateData,selectData,reactom_pathway_store)
 
     getOpts(modelhelp,funcs=funcs)
         
 if __name__ == '__main__':
     main()
     # filepaths,version = downloadData(redownload = True)
-    # rawdir = '/home/user/project/dbproject/mydb_v1/reactom_pathway/dataraw/pathway_180108100817/'
+    # rawdir = '/home/user/project/dbproject/mydb_v1/reactom_pathway/dataraw/pathway_180123140434/'
     # filepaths = [pjoin(rawdir,filename) for filename in os.listdir(rawdir)]
-    # date = '180108100817'
+    # date = '180123140434'
     # extractData(filepaths,date)
     # updateData()
     # pass
@@ -988,3 +1044,8 @@ if __name__ == '__main__':
     # reactom_entry_col = db_cols.get('reactom.pathway.entry')
 
     # docs = reactom_
+
+    # man = parser(today)
+    # (filename_urlmt,pathurl_mt,other_mt) = man.getUrl()
+    # with open('./tmp.json','w') as wf:
+    #     json.dump(filename_urlmt,wf,indent=8)

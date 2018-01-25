@@ -4,7 +4,7 @@
 # author:wuling
 # emai:ling.wu@myhealthgene.com
 
-#this model set  to xxxxxx
+#this model set  to download ,parser(extract,satndar,insert) and update hgnc gene data from hgnc ftp site
 
 import sys
 sys.path.append('../')
@@ -12,7 +12,7 @@ sys.setdefaultencoding = ('utf-8')
 from share import *
 from config import *  
 
-__all__ = ['downloadData','extractData','standarData','insertData','updateData','selectData']
+__all__ = ['downloadData','extractData','updateData','selectData']
 
 version  = 1.0
 
@@ -26,11 +26,10 @@ log_path = pjoin(hgnc_gene_model,'hgnc_gene.log')
 def downloadData(redownload = False):
 
     '''
-    this function is to download the raw data from go gene FTP WebSite
+    this function is to download the raw data from hgnc FTP WebSite
     args:
     redownload-- default False, check to see if exists an old edition before download
                        -- if set to true, download directly with no check
-    rawdir-- the directory to save download file
     '''
     if  not redownload:
 
@@ -41,21 +40,14 @@ def downloadData(redownload = False):
 
     if redownload or not existHgncFile or  choice == 'y':
 
-        process = hgnc_parser(today)
+        process = parser(today)
 
-        mt = process.getMt()
-
-        ftp = connectFTP(**hgnc_gene_ftp_infos)
-
-        filename = hgnc_genename_filename
-
-        savefilename = '{}_{}_{}.txt'.format(filename.rsplit('.txt',1)[0].strip(),mt,today)
-
-        remoteabsfilepath = pjoin(hgnc_gene_ftp_infos['logdir'],'{}'.format(filename))
-
-        save_file_path = ftpDownload(ftp,filename,savefilename,hgnc_gene_raw,remoteabsfilepath)
-
-    # create log file
+        #------------------------------------------------------------------------------------------------------------------------
+        # 1. download hgnc_complete_set.txt
+        save_file_path = process.getOne(hgnc_gene_ftp_infos,hgnc_genename_filename,hgnc_gene_raw)
+    
+    #------------------------------------------------------------------------------------------------------------------------
+    #  generate .log file in current  path
     if not os.path.exists(log_path):
 
         with open(log_path,'w') as wf:
@@ -68,13 +60,15 @@ def downloadData(redownload = False):
 
 def extractData(filepath,date):
 
-    filename = psplit(filepath)[1].strip()
+    '''
+    this function is set to distribute all filepath to parser to process
+    args:
+    filepaths -- all filepaths to be parserd
+    date -- the date of  data download
+    '''
+    process = parser(date)
 
-    fileversion = filename.rsplit('_',1)[0].strip().rsplit('_',1)[1].strip()
-
-    process = hgnc_parser(date)
-
-    process.tsv(filepath,fileversion)
+    process.hgnc_info(filepath)
 
     # bkup all collections
 
@@ -86,19 +80,22 @@ def extractData(filepath,date):
 
     return (filepath,date)
 
-def updateData(insert=False,_mongodb=hgnc_gene_db):
-
+def updateData(insert=True):
+    '''
+    this function is set to update all file in log
+    '''
     hgnc_gene_log = json.load(open(log_path))
 
-    process = hgnc_parser(today)
+    ftp = connectFTP(**hgnc_gene_ftp_infos)
 
-    mt = process.getMt()
+    mt =  ftp.sendcmd('MDTM {}'.format(hgnc_genename_filename)).replace(' ','')
 
     if mt != hgnc_gene_log['hgnc_gene'][-1][0]:
 
         filepath,version = downloadData(redownload=True)
 
-        extractData(filepath,version)
+        if insert:
+            extractData(filepath,version)
 
         hgnc_gene_log['hgnc_gene'].append((mt,today,model_name))
 
@@ -108,12 +105,16 @@ def updateData(insert=False,_mongodb=hgnc_gene_db):
             json.dump(hgnc_gene_log,wf,indent=2)
 
         print  '{} \'s new edition is {} '.format('hgnc_gene',mt)
-        
+
+        return 'update successfully'
+
     else:
 
         print  '{} {} is the latest !'.format('hgnc_gene',mt)
 
-def selectData(querykey = 'hgho_id',value='1'):
+        return 'new version is\'t detected'
+
+def selectData(querykey = 'hgnc_id',value='1'):
     '''
     this function is set to select data from mongodb
     args:
@@ -122,45 +123,21 @@ def selectData(querykey = 'hgho_id',value='1'):
     '''
     conn = MongoClient('127.0.0.1', 27017 )
 
-    db = conn.mydb
+    db = conn.get_database('mydb_v1')
 
-    colnamehead = 'hgnc_gene'
+    colnamehead = 'hgnc'
 
     dataFromDB(db,colnamehead,querykey,queryvalue=None)
 
-class dbMap(object):
+class parser(object):
 
-    #class introduction
+    '''
+    this class is set to parser all raw file to extract content we need and insert to mongodb
+    '''
 
-    def __init__(self,version):
-
-        self.version = version
-
-        conn = MongoClient('localhost',27017)
-
-        db = conn.get_database('mydb')
-
-        colname = 'hgnc_gene_{}'.format(version)
-
-        col = db.get_collection(colname)
-
-        self.col = col
-
-        self.version = version
-
-    def mapXX2XX(self):
-        pass
-
-    def mapping(self):
-
-        self.mapXX2XX()
-
-class hgnc_parser(object):
-
-    """docstring for hgnc_parser"""
     def __init__(self,date):
 
-        super(hgnc_parser, self).__init__()
+        super(parser, self).__init__()
 
         conn = MongoClient('localhost',27017)
 
@@ -170,16 +147,43 @@ class hgnc_parser(object):
 
         self.db = db
 
-    def getMt(self):
+    def getOne(self,hgnc_gene_ftp_infos,filename,rawdir):
+        '''
+        this function is to download  one file under  a given remote dir 
+        args:
+        hgnc_gene_ftp_infos --  a specified ftp cursor  
+        filename --  the name of file need download
+        rawdir -- the directory to save download file
+        '''
+        while  True:
 
-        ftp = connectFTP(**hgnc_gene_ftp_infos)
+            try:
 
-        mt =  ftp.sendcmd('MDTM {}'.format(hgnc_genename_filename)).replace(' ','')
+                ftp = connectFTP(**hgnc_gene_ftp_infos)
 
-        return mt
+                mt =  ftp.sendcmd('MDTM {}'.format(hgnc_genename_filename)).replace(' ','')
 
-    def tsv(self,filepath,fileversion):
+                savefilename = '{}_{}_{}.txt'.format(filename.rsplit('.txt',1)[0].strip(),mt,today)
 
+                remoteabsfilepath = pjoin(hgnc_gene_ftp_infos['logdir'],'{}'.format(filename))
+
+                save_file_path = ftpDownload(ftp,filename,savefilename,hgnc_gene_raw,remoteabsfilepath)
+
+                return save_file_path
+
+            except:
+
+                ftp = connectFTP(**hgnc_gene_ftp_infos)
+
+    def hgnc_info(self,filepath):
+
+        '''
+        this function is set parser gene_info 
+        '''
+        filename = psplit(filepath)[1].strip()
+
+        fileversion = filename.rsplit('_',1)[0].strip().rsplit('_',1)[1].strip()
+        
         tsvfile = open(filepath)
 
         colname = 'hgnc.gene'
@@ -187,6 +191,8 @@ class hgnc_parser(object):
         delCol('mydb_v1',colname)
 
         col = self.db.get_collection(colname)
+
+        col.ensure_index([('hgnc_id',1),])
 
         col.insert({'dataVersion':fileversion,'dataDate':self.date,'colCreated':today,'file':'hgnc_complete_set'})
 
@@ -198,11 +204,8 @@ class hgnc_parser(object):
 
                 keys = [i.strip().replace('.','*').replace(' ','&') for i in line.strip().split('\t')]
 
-                # for index,key in enumerate(keys):
-                #     print index,key
-
             else:
-                data = line.strip().split('\t')
+                data = [''.join(''.join(i.split('"',1)).rsplit('"',1)).strip() for i in line.strip().split('\t')]
 
                 dic = dict([(key,val) for key,val in zip(keys,data)])
 
@@ -215,22 +218,101 @@ class hgnc_parser(object):
                     n += 1
                     continue
 
+                gene_family = dic.pop('gene_family')
+
+                gene_family_id = dic.pop('gene_family_id')
+
+                if gene_family and gene_family_id:
+
+                    family = [i.strip() for i in gene_family.split('|') if i]
+
+                    family_id = [i.strip() for i in gene_family_id.split('|') if i]
+
+                    family_id_link = ['https://www.genenames.org/cgi-bin/genefamilies/set/{}'.format(_id) for _id in family_id]
+
+                    dic['gene_family'] =  list()
+
+                    for i,j,k in zip(family,family_id,family_id_link):
+
+                        dic['gene_family'].append({
+                            'family':i,
+                            'family_id':j,
+                            'family_id_link':k,
+                            })
+
                 col.insert(dic)
 
                 print 'hgnc gene line',n
 
             n += 1
 
+class dbMap(object):
+    '''
+    this class is set to map hgnc  id to other db
+    '''
+    def __init__(self):
+
+        import commap
+
+        from commap import comMap
+
+        (db,db_cols) = initDB('mydb_v1') 
+
+        self.db = db
+
+        self.db_cols = db_cols
+
+        process = commap.comMap()
+
+        self.process = process
+
+    def dbID2hgncSymbol(self):
+
+        hgnc2symbol = self.process.hgncID2hgncSymbol()
+
+        output = dict()
+
+        hgncSymbol2hgncID = output
+
+        for hgnc_id,symbol in hgnc2symbol.items():
+
+            for sym in symbol:
+
+                if sym not in output:
+
+                    output[sym] = list()
+
+                output[sym].append(hgnc_id)
+
+        for key,val in output.items():
+
+            val = list(set(val))
+
+            output[key] = val
+
+        # with open('./hgncSymbol2hgncID.json','w') as wf:
+        #     json.dump(output,wf,indent=8)
+
+        print 'hgncSymbol2hgncID',len(hgncSymbol2hgncID)
+
+        return (hgncSymbol2hgncID,'hgnc_id')
+
+class dbFilter(object):
+
+    '''this class is set to filter part field of data in collections  in mongodb '''
+
+    def __init__(self, arg):
+        super(dbFilter, self).__init__()
+        self.arg = arg
+        
+        
 def main():
 
-    modelhelp = ''
+    modelhelp = model_help.replace('&'*6,'HGNC_GENE').replace('#'*6,'hgnc_gene')
 
-    funcs = (downloadData,extractData,updateData,selectData,dbMap,hgnc_gene_store)
+    funcs = (downloadData,extractData,updateData,selectData,hgnc_gene_store)
 
     getOpts(modelhelp,funcs=funcs)
         
 if __name__ == '__main__':
-    # main()
-    (filepath,today) = downloadData(redownload = True)
-    extractData(filepath,today)
-    updateData()
+    main()

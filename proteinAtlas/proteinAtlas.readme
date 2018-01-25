@@ -1,0 +1,54 @@
+
+++++++ mydb_v1 Documentation ++++++
+
+edited@xxxxxx
+
+please direct all questions to author@xxxxxx.com
+
+1. brief introduction of sub-files
+
+2. description about mydb_v1-parser
+
+the main job of mydb_v1-parser is to
+
+Functions
+ 
+(1) downloadData(redownload = False)
+    ===function : download the raw data from mydb_v1 FTP WebSite
+    ===parameter:
+         redownload ~ default False, check to see if exists an old edition before download
+                    ~ if set to true, download directly with no check
+
+(2) extractData()
+    ===function :
+    ===parameter:
+
+(3) standarData(filepath)
+    ===function :
+    ===parameter:
+
+(4) insertData()
+    ===function : 
+    ===parameter:
+
+(5) updateData(insert=True)
+    ===function :
+    ===parameter:
+
+(6) selectDate():
+    ===function :
+    ===parameter:
+       
+Design  
+
+Usage: python mydb_v1.py  [OPTION]...[NAME]...
+
+Download,extract,standar,insert and update data automatically
+
+-h, --help                         :give this help
+-a, --all                             :excute download,extract,standar and insert
+-u, --update                     :update database
+-q, --query  [filedname]  :select data from mongodb      
+
+++++++ mydb_v1  Documentation ++++++
+

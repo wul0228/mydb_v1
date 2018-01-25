@@ -12,7 +12,7 @@ sys.setdefaultencoding = ('utf-8')
 from share import *
 from config import *  
 
-__all__ = ['downloadData','extractData','standarData','insertData','updateData','selectData']
+__all__ = ['downloadData','extractData','updateData','selectData']
 
 version  = 1.0
 
@@ -25,39 +25,28 @@ log_path = pjoin(clinvar_variant_model,'clinvar_variant.log')
 # main code
 def downloadData(redownload = False):
     '''
-    this function is to download the raw data from go clinvar FTP WebSite
+    this function is to download the raw data from  clinvar FTP WebSite
     args:
     redownload-- default False, check to see if exists an old edition before download
                        -- if set to true, download directly with no check
-    rawdir-- the directory to save download file
     '''
     if  not redownload:
 
-        (choice,existgoFile) = lookforExisted(clinvar_variant_raw,'variant')
+        (choice,existFile) = lookforExisted(clinvar_variant_raw,'variant')
 
         if choice != 'y':
             return
 
     if redownload or not existgoFile or  choice == 'y':
 
-        ftp = connectFTP(**clinvar_varient_ftp_infos)
+        process = parser(today)
 
-        filename = clinvar_varient_filename
+        #-----------------------------------------------------------------------------------------------------------------------------------
+        # 1. download variant summary file
+        filepath,mt = process.getOne(clinvar_varient_ftp_infos,clinvar_varient_filename,clinvar_variant_raw)
 
-        mt =  ftp.sendcmd('MDTM {}'.format(filename)).replace(' ','')
-
-        savefilename = '{}_{}_{}.txt.gz'.format(filename.rsplit('.txt',1)[0].strip(),mt,today)
-
-        remoteabsfilepath = pjoin(clinvar_varient_ftp_infos['logdir'],'{}'.format(filename))
-
-        save_file_path = ftpDownload(ftp,filename,savefilename,clinvar_variant_raw,remoteabsfilepath)
-
-        # gunzip file
-        gunzip = 'gunzip {}'.format(save_file_path)
-
-        os.popen(gunzip)
-
-    # create log file
+    #-----------------------------------------------------------------------------------------------------------------------------------
+    #  generate .log file in current  path
     if not os.path.exists(log_path):
 
         with open(log_path,'w') as wf:
@@ -66,43 +55,55 @@ def downloadData(redownload = False):
 
     print  'datadowload completed !'
 
-    filepath = save_file_path.split('.gz')[0].strip()
+    #--------------------------------------------------------------------------------------------------------------------
+    # return filepaths to extract 
 
     return (filepath,today)
 
 def extractData(filepath,date):
+    '''
+    this function is set to distribute all filepath to parser to process
+    args:
+    filepath -- the file to be parserd
+    date -- the date of  data download
+    '''
+    # ----------------------------------------------------------------------------------------------------
+    # 1. distribute filepaths for parser
+    #  just only one file
 
     filename = psplit(filepath)[1].strip()
 
     fileversion = filename.rsplit('_',1)[0].strip().rsplit('_',1)[1].strip()
+    # ----------------------------------------------------------------------------------------------------
+    # 2. parser filepaths step by step
+    process = parser(date)
 
-    process = clinvar_parser(date)
-
-    process.sum(filepath,fileversion)
+    process.variant_info(filepath,fileversion)
 
     colhead = 'clinvar.variant'
-
+    # ----------------------------------------------------------------------------------------------------
+    # 3. bkup all collections
     bkup_allCols('mydb_v1',colhead,clinvar_variant_db)
 
     print 'extract and insert completed'
 
     return (filepath,date)
 
-def updateData(insert=False,_mongodb='../_mongodb/'):
-
+def updateData(insert=False):
+    '''
+    this function is set to update all file in log
+    '''
     clinvar_variant_log = json.load(open(log_path))
 
     ftp = connectFTP(**clinvar_varient_ftp_infos)
 
-    filename = clinvar_varient_filename
-
-    mt =  ftp.sendcmd('MDTM {}'.format(filename)).replace(' ','')
+    mt =  ftp.sendcmd('MDTM {}'.format(clinvar_varient_filename)).replace(' ','')
 
     if mt != clinvar_variant_log['clinvar_variant'][-1][0]:
 
-        filepath,version = downloadData(redownload=True)
+        filepath,date = downloadData(redownload=True)
 
-        extractData(filepath,version)
+        extractData(filepath,date)
 
         clinvar_variant_log['clinvar_variant'].append((mt,today,model_name))
 
@@ -112,10 +113,14 @@ def updateData(insert=False,_mongodb='../_mongodb/'):
             json.dump(clinvar_variant_log,wf,indent=2)
 
         print  '{} \'s new edition is {} '.format('clinvar_variant',mt)
+
+        return 'update successfully'
         
     else:
 
         print  '{} {} is the latest !'.format('clinvar_variant',mt)
+
+        return 'new version is\'t detected'
 
 def selectData(querykey = 'GeneID',value='1'):
     '''
@@ -126,15 +131,16 @@ def selectData(querykey = 'GeneID',value='1'):
     '''
     conn = MongoClient('127.0.0.1', 27017 )
 
-    db = conn.mydb
+    db = conn.get_database('mydb_v1')
 
-    colnamehead = 'clinvar_variant_'
+    colnamehead = 'clinvar.variant'
 
     dataFromDB(db,colnamehead,querykey,queryvalue=None)
 
-class clinvar_parser(object):
-
-    """docstring for clinvar_parser"""
+class parser(object):
+    '''
+    this class is set to parser all raw file to extract content we need and insert to mongodb
+    '''
     def __init__(self, date):
 
         conn = MongoClient('localhost',27017)
@@ -147,13 +153,56 @@ class clinvar_parser(object):
 
         self.date = date
 
-    def sum(self,filepath,fileversion):
+    def getOne(self,clinvar_variant_ftp_infos,filename,rawdir):
+        '''
+        this function is to download  one file under  a given remote dir 
+        args:
+        ftp_infos --  a specified ftp connection info 
+        filename --  the name of file need download
+        rawdir -- the directory to save download file
+        '''
+        while  True:
 
+            try:
+
+                ftp = connectFTP(**clinvar_variant_ftp_infos)
+
+                mt =  ftp.sendcmd('MDTM {}'.format(filename)).replace(' ','')
+
+                savefilename = '{}_{}_{}.txt.gz'.format(filename.rsplit('.txt',1)[0].strip(),mt,today)
+
+                remoteabsfilepath = pjoin(clinvar_variant_ftp_infos['logdir'],'{}'.format(filename))
+
+                save_file_path = ftpDownload(ftp,filename,savefilename,rawdir,remoteabsfilepath)
+
+                print filename,'done'
+
+                # gunzip file
+                gunzip = 'gunzip {}'.format(save_file_path)
+
+                os.popen(gunzip)
+
+                save_file_path = save_file_path.rsplit('.gz',1)[0].strip()
+
+                return (save_file_path,mt)
+
+            except:
+
+                ftp = connectFTP(**clinvar_variant_ftp_infos)
+
+    def variant_info(self,filepath,fileversion):
+        '''
+        this function is set parser variant_info 
+        '''
         colname = 'clinvar.variant'
 
+        # before insert ,truncate collection
         delCol('mydb_v1',colname)
 
         col = self.db.get_collection(colname)
+        col.ensure_index([('GeneID',1),])
+        col.ensure_index([('AlleleID',1),])
+        col.ensure_index([('GeneID',1),('AlleleID',1)])
         
         col.insert({'dataVersion':fileversion,'dataDate':self.date,'colCreated':today,'file':'variant_summary'})
 
@@ -212,11 +261,13 @@ class clinvar_parser(object):
             n += 1
 
 class dbMap(object):
-
-    #class introduction
-
+    '''
+    this class is set to map ncbi gene id to other db
+    '''
     def __init__(self):
 
+        super(dbMap, self).__init__()
+        
         import commap
 
         from commap import comMap
@@ -235,7 +286,7 @@ class dbMap(object):
         '''
         this function is to create a mapping relation between alle id  with HGNC Symbol
         '''
-        # because disgenet gene id  is entrez id 
+        
         hgnc2symbol = self.process.hgncID2hgncSymbol()
 
         clinvar_variant_col = self.db_cols.get('clinvar.variant')
@@ -270,15 +321,17 @@ class dbMap(object):
             
         print 'hgncSymbol2clinvarVariantID',len(output)
 
-        with open('./hgncSymbol2clinvarVariantID.json','w') as wf:
-            json.dump(output,wf,indent=8)
+        # with open('./hgncSymbol2clinvarVariantID.json','w') as wf:
+        #     json.dump(output,wf,indent=8)
 
         return (hgncSymbol2clinvarVariantID,'AlleleID')
 
-class filter(object):
-    """docstring for gene_topic"""
+class dbFilter(object):
+
+    '''this class is set to filter part field of data in collections  in mongodb '''
+
     def __init__(self):
-        super(filter, self).__init__()
+        super(dbFilter, self).__init__()
     
     def gene_topic(self,doc):
         save_keys = ['GeneID','Assembly','Chromosome','Start' ,'Stop', 'ReferenceAllele','AlternateAllele',
@@ -291,17 +344,9 @@ def main():
 
     modelhelp = model_help.replace('&'*6,'CLINVAR_VARIANT').replace('#'*6,'clinvar_variant')
 
-    funcs = (downloadData,extractData,updateData,selectData,dbMap,clinvar_variant_store)
+    funcs = (downloadData,extractData,updateData,selectData,clinvar_variant_store)
 
     getOpts(modelhelp,funcs=funcs)
         
 if __name__ == '__main__':
-    
     main()
-    # filepath,version = downloadData(redownload = True)
-    # updateData()
-    # filepath = '/home/user/project/dbproject/mydb_v1/clinvar_variant/dataraw/variant_summary_21320171226220427_171228125338.txt'
-    # version = '171228125338'
-    # extractData(filepath,version)
-    man = dbMap()
-    man.dbID2hgncSymbol()

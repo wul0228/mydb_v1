@@ -4,7 +4,7 @@
 # author:wuling
 # emai:ling.wu@myhealthgene.com
 
-# this model is set to
+
 #+++++++++++++++++++++++++ packages ++++++++++++++++++++++++++++++++++++++#
 import os , sys, getopt, tsv, json, time,copy,requests ,pprint,xlrd
 from template import *
@@ -18,7 +18,7 @@ from pymongo import MongoClient
 from bs4 import BeautifulSoup as bs
 from multiprocessing.dummy import Pool as ThreadPool
 
-#+++++++++++++++++++++++++ simplify  method+++++++++++++++++++++++++++++++++#
+#+++++++++++++++++++++++++ abbreviations  +++++++++++++++++++++++++++++++++#
 listdir = os.listdir
 
 pjoin = os.path.join
@@ -33,8 +33,9 @@ mydb_path =psplit(os.path.abspath(__file__))[0]
 now  = datetime.now().strftime('%y%m%d')
 
 today = datetime.now().strftime('%y%m%d%H%M%S')
-
+    
 headers = {'User-Agent':'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Ubuntu Chromium/37.0.2062.120 Chrome/37.0.2062.120 Safari/537.36'}
+
 #~~~~~~~~~~~~~~~~~~~NCBI gene~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 ncbi_gene_ftp_infos = {
     'host' : 'ftp.ncbi.nlm.nih.gov' ,
@@ -46,7 +47,7 @@ ncbi_gene_data_ftp_path = '/gene/DATA/'
 
 ncbi_gene_expression_path = '/gene/DATA/expression/Mammalia/Homo_sapiens/'
 
-ncbi_refseq_ftp_path =  '/refseq/H_sapiens/RefSeqGene/'
+ncbi_gene_refseq_ftp_path =  '/refseq/H_sapiens/RefSeqGene/'
 
 ncbi_gene_filenames = ['gene2refseq.gz','gene_group.gz','gene_neighbors.gz','gene2pubmed.gz','gene_info.gz'] #'
 
@@ -105,7 +106,6 @@ go_gene_ftp_infos =  {
 'logdir' : '/pub/databases/GO/goa/HUMAN/'
 }
 
-
 go_web = 'http://www.ebi.ac.uk/QuickGO/'
 
 go_gene_filenames = [
@@ -139,9 +139,13 @@ hgnc_genename_filename = 'hgnc_complete_set.txt'
 # kegg_pathway_downloadurl = 'http://www.kegg.jp/kegg-bin/get_htext?hsa00001'
 kegg_pathway_web = 'http://www.kegg.jp/kegg-bin/get_htext?ko00000.keg'
 kegg_pathway_download = 'http://www.kegg.jp/kegg-bin/get_htext?hsa00001'
-kegg_disease_web1 = 'http://www.genome.jp/kegg-bin/get_htext?br08402.keg'
-kegg_disease_web2 = 'http://www.genome.jp/kegg-bin/get_htext?br08401.keg'
-
+kegg_disease_web2 = 'http://www.genome.jp/kegg-bin/get_htext?br08402.keg'
+kegg_disease_web1 = 'http://www.genome.jp/kegg-bin/get_htext?br08401.keg'
+keggfilename_web = {
+'hsa00001.json':kegg_pathway_download,
+'br08401.json':kegg_disease_web1,
+'br08402.json':kegg_disease_web2
+}
 #~~~~~~~~~~~~~~~~~~~reactom pathway~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # reactome_download_web1 = 'https://reactome.org/download/current/'
 # reactome_download_web2 = 'https://reactome.org/download/current/interactors/'
@@ -169,6 +173,8 @@ reactome_download_web3 = 'https://reactome.org/download-data/'
 #~~~~~~~~~~~~~~~~~~~wiki pathway~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 wiki_pathway_download = 'https://www.wikipathways.org/index.php/Download_Pathways'
+wiki_pathway_info_url = 'https://webservice.wikipathways.org/listPathways?organism=Homo%20sapiens&format=json'
+wiki_pathway_gene_url = 'http://data.wikipathways.org/java-bots/gmt/current/gmt_wp_Homo_sapiens.gmt'
 
 #~~~~~~~~~~~~~~~~~~~clinvar varient~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 clinvar_varient_ftp_infos = {
@@ -226,4 +232,3 @@ trrust_download_web ='http://www.grnpedia.org/trrust/downloadnetwork.php'
 #~~~~~~~~~~~~~~~~~~~dgidb drug ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 dgidb_web = 'http://dgidb.org'
 dgidb_api_web = 'http://dgidb.org/api#formats'
-

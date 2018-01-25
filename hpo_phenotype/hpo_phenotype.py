@@ -4,7 +4,7 @@
 # author:wuling
 # emai:ling.wu@myhealthgene.com
 
-#this model set  to xxxxxx
+#this model set  to download ,parser(extract,satndar,insert) and update phenotype  data from hpo web site
 
 import sys
 sys.path.append('../')
@@ -23,7 +23,7 @@ model_name = psplit(os.path.abspath(__file__))[1]
 log_path = pjoin(hpo_phenotype_model,'hpo_phenotype.log')
 
 # main code
-def downloadData( redownload=False ):
+def downloadData(redownload=False):
     '''
     this function is to download the raw data from  hpo WebSite
     args:
@@ -42,59 +42,63 @@ def downloadData( redownload=False ):
         rawdir = pjoin(hpo_phenotype_raw,'phenotype_{}'.format(today))
 
         createDir(rawdir)
-
-        process = hpo_parser(today)
+        #------------------------------------------------------------------------------------------------------------------------
+        process = parser(today)
     
+        # 1. get the latest version of  raw file
         mt = process.getMt()   
 
-        print mt
-
-        for  url in hpo_download_urls:
-
-            process.wget(url,mt,rawdir)
-
+        # 2. download raw files
+        process.getAll(hpo_download_urls,mt,rawdir)
+    #--------------------------------------------------------------------------------------------------------------------
+    #  generate .log file in current  path
     if not os.path.exists(log_path):
 
         with open(log_path,'w') as wf:
             json.dump({'hpo_phenotype':[(mt,today,model_name)]},wf,indent=8)
 
     print  'datadowload completed !'
-
+    #--------------------------------------------------------------------------------------------------------------------
+    # return filepaths to extract 
     filapths = [pjoin(rawdir,filename) for filename in listdir(rawdir)]
 
     return (filapths,today)
 
 def extractData(filepaths,date):
-    
-    process = hpo_parser(date)
 
-    for info in ['info','disgene','disease','gene','ontology','annotation']:
+    '''
+    this function is set to distribute all filepath to parser to process
+    args:
+    filepaths -- all filepaths to be parserd
+    date -- the date of  data download
+    '''
+    # 1. distribute filepaths for parser
+    phenotype_info_paths = [path for path in filepaths if psplit(path)[1].strip().endswith('obo')]
 
-        delCol('mydb_v1','hpo.phenotype.{}'.format(info))
+    phenotype_gene_paths = [path for path in filepaths if psplit(path)[1].strip().startswith('ALL_SOURCES')]
 
-    for filepath in filepaths:
+    phenotype_disease_paths = [path for path in filepaths if psplit(path)[1].strip().endswith('.tab')]
 
-        filename = psplit(filepath)[1].strip()
+    phenotype_disgene_paths = [path for path in filepaths if psplit(path)[1].split('_',1).strip() in ['OMIM','ORPHA']]
+   
+    # 2. parser filepaths step by step
+    process = parser(date)
 
-        fileversion = filename.rsplit('_',1)[0].strip().rsplit('_',1)[1].strip()
+    # --------------------------------hpo.phenotype.info-------------------------------------------------------------------------
+    process.phenotype_info(phenotype_info_paths)
 
-        if filename.endswith('obo'):
+    # --------------------------------hpo.phenotype.gene-------------------------------------------------------------------------
+    process.phenotype_gene(phenotype_gene_paths)
 
-            process.info(filepath,fileversion)
+    # --------------------------------hpo.phenotype.disease-------------------------------------------------------------------------
+    process.phenotype_disease(phenotype_disease_paths)
 
-        elif filename.endswith('.tab'):
+    # --------------------------------hpo.phenotype.disgene-------------------------------------------------------------------------
+    process.phenotype_disgene(phenotype_disgene_paths)
 
-            process.disease(filepath,fileversion)
+    print 'extract and insert complete '
 
-        elif filename.startswith('ALL_SOURCES'):
-
-            process.gene(filepath,fileversion)
-
-        elif filename.startswith('OMIM') or filename.startswith('ORPHA') :
-
-            process.disgene(filepath,fileversion)
-
-    # bkup all collections
+    # 3. bkup all collections
     _mongodb = pjoin(hpo_phenotype_db,'phenotype_{}'.format(date))
 
     createDir(_mongodb)
@@ -105,15 +109,11 @@ def extractData(filepaths,date):
 
     return (filepaths,date)
 
-    print 'extract and insert complete '
-
-    # return (filepaths,version)
-
 def updateData(insert=False,_mongodb='../_mongodb/'):
 
     hpo_phenotype_log = json.load(open(log_path))
 
-    process = hpo_parser(today)
+    process = parser(today)
 
     mt = process.getMt()
 
@@ -132,12 +132,14 @@ def updateData(insert=False,_mongodb='../_mongodb/'):
 
         print  '{} \'s new edition is {} '.format('hpo_phenotype',mt)
 
-        bakeupCol('hpo_phenotype_{}'.format(version),'hpo_phenotype',_mongodb)
+        return 'update successfully'
 
     else:
         print  '{} {} is the latest !'.format('hpo_phenotype',mt)
 
-def selectData(querykey = 'id',value='HP:0011220'):
+        return 'new version is\'t detected'
+
+def selectData(querykey = 'HPO-ID',value='HP:0011220'):
     '''
     this function is set to select data from mongodb
     args:
@@ -146,212 +148,19 @@ def selectData(querykey = 'id',value='HP:0011220'):
     '''
     conn = MongoClient('127.0.0.1', 27017 )
 
-    db = conn.mydb
+    db = conn.get_database('mydb_v1')
 
-    colnamehead = 'hpo_phenotype_'
+    colnamehead = 'hpo.phenotype'
 
     dataFromDB(db,colnamehead,querykey,queryvalue=None)
 
-class dbMap(object):
-
-    #class introduction
-
-    def __init__(self,version):
-
-        self.version = version
-
-        conn = MongoClient('localhost',27017)
-
-        db = conn.get_database('mydb')
-
-        colname = 'hpo_phenotype_{}'.format(version)
-
-        col = db.get_collection(colname)
-
-        self.col = col
-
-        self.docs = col.find({})
-
-        self.colname = colname
-
-    def maphpoid2geneid(self):
-            
-        hpoid2geneid =dict()
-        hpoid2diseaseid = dict()
-        diseaseid2hpoid = {'OMIM':{},'ORPHA':{},'DECIPHER':{}}
-        diseaseid2geneid= {'OMIM':{},'ORPHA':{}}
-        geneid2disease= dict()
-
-        for doc in self.docs:
-
-            hpoid = doc.get('id')
-
-            ORPHA = doc.get('ORPHA')
-
-            OMIM = doc.get('OMIM')
-
-            DECIPHER = doc.get('DECIPHER')
-
-            if  OMIM:
-
-                diseaseid = OMIM.keys()
-
-#----------------diseaseid2hpoid and hpoid2diseaseid-------------------
-
-                for disid in diseaseid:
-
-                    if disid not in diseaseid2hpoid['OMIM']:
-
-                        diseaseid2hpoid['OMIM'][disid] = list()
-
-                    diseaseid2hpoid['OMIM'][disid].append(hpoid)
-
-                if hpoid not in hpoid2diseaseid:
-
-                    hpoid2diseaseid[hpoid] = dict()
-
-                hpoid2diseaseid[hpoid]['OMIM'] = diseaseid
-
-#----------------diseaseid2geneid and hpoid2geneid and geneid2disease-------------------
-
-                for omimid,val in OMIM.items():
-
-                    gene_list = val.get('gene')
-
-                    if not gene_list:
-                        continue
-
-                    for gene in gene_list:
-
-                        geneid = gene.get('gene-id(entrez)')
-                        genesym = gene.get('gene-symbol')
-
-                        if omimid not in  diseaseid2geneid['OMIM']:
-                            diseaseid2geneid['OMIM'][omimid] = list()
-
-                        diseaseid2geneid['OMIM'][omimid].append(geneid)
-
-                        if hpoid not in hpoid2geneid:
-
-                            hpoid2geneid[hpoid] = list()
-
-                        hpoid2geneid[hpoid].append(geneid)
-
-                        if geneid not in geneid2disease:
-
-                            geneid2disease[geneid] = dict()
-
-                        if 'OMIM' not  in geneid2disease[geneid]:
-
-                            geneid2disease[geneid]['OMIM'] = list()
-
-                        geneid2disease[geneid]['OMIM'].append(omimid)
-
-
-            if  ORPHA:
-
-                diseaseid = ORPHA.keys()
-
-#----------------diseaseid2hpoid and hpoid2diseaseid-------------------
-
-                for disid in diseaseid:
-
-                    if disid not in diseaseid2hpoid['ORPHA']:
-
-                        diseaseid2hpoid['ORPHA'][disid] = list()
-
-                    diseaseid2hpoid['ORPHA'][disid].append(hpoid)
-
-                if hpoid not in hpoid2diseaseid:
-
-                    hpoid2diseaseid[hpoid] = dict()
-
-                hpoid2diseaseid[hpoid]['ORPHA'] = diseaseid
-
-#----------------diseaseid2geneid and hpoid2geneid and geneid2disease-------------------
-
-                for orphaid,val in ORPHA.items():
-
-                    gene_list = val.get('gene')
-
-                    if not gene_list:
-                        continue
-
-                    for gene in gene_list:
-
-                        geneid = gene.get('gene-id(entrez)')
-                        genesym = gene.get('gene-symbol')
-
-                        if orphaid not in  diseaseid2geneid['ORPHA']:
-                            diseaseid2geneid['ORPHA'][orphaid] = list()
-
-                        diseaseid2geneid['ORPHA'][orphaid].append(geneid)
-
-                        if hpoid not in hpoid2geneid:
-
-                            hpoid2geneid[hpoid] = list()
-
-                        hpoid2geneid[hpoid].append(geneid)
-
-                        if geneid not in geneid2disease:
-
-                            geneid2disease[geneid] = dict()
-
-                        if 'ORPHA' not  in geneid2disease[geneid]:
-
-                            geneid2disease[geneid]['ORPHA'] = list()
-
-                        geneid2disease[geneid]['ORPHA'].append(orphaid)
-
-            if  DECIPHER:
-
-                diseaseid = DECIPHER.keys()
-
-                for disid in diseaseid:
-
-                    if disid not in diseaseid2hpoid['DECIPHER']:
-
-                        diseaseid2hpoid['DECIPHER'][disid] = list()
-
-                    diseaseid2hpoid['DECIPHER'][disid].append(hpoid)
-
-                if hpoid not in hpoid2diseaseid:
-
-                    hpoid2diseaseid[hpoid] = dict()
-
-                hpoid2diseaseid[hpoid]['DECIPHER'] = diseaseid
-        
-        geneid2hpoid = value2key(hpoid2geneid)
-
-        map_dir = pjoin(hpo_phenotype_map,self.colname)
-
-        createDir(map_dir)
-
-        save = {'hpoid2diseaseid':hpoid2diseaseid,'diseaseid2hpoid':diseaseid2hpoid,
-                        'diseaseid2geneid':diseaseid2geneid,'geneid2disease':geneid2disease,
-                        'hpoid2geneid':hpoid2geneid,'geneid2hpoid':geneid2hpoid}
-
-        for name,dic in save.items():
-
-            if name in ['diseaseid2geneid','diseaseid2hpoid','geneid2disease']:
-                dic = dedupDicVal(dic)
-
-            elif name in ['geneid2hpoid']:
-                for key,val in dic.items():
-                    dic[key] = list(set(val))
-                    
-            with open(pjoin(map_dir,'{}.json'.format(name)),'w') as wf:
-                json.dump(dic,wf,indent=2)
-
-    def mapping(self):
-
-        self.maphpoid2geneid()
-
-class hpo_parser(object):
-    """docstring for hpo_parser"""
+class parser(object):
+    '''
+    this class is set to parser all raw file to extract content we need and insert to mongodb
+    '''
     def __init__(self, date):
 
-        super(hpo_parser, self).__init__()
+        super(parser, self).__init__()
 
         self.date = date
 
@@ -362,7 +171,9 @@ class hpo_parser(object):
         self.db = db
 
     def getMt(self):
-
+        '''
+        this function is set to get the latest version of raw file from hpo web site
+        '''
         headers = {'User-Agent':'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Ubuntu Chromium/37.0.2062.120 Chrome/37.0.2062.120 Safari/537.36'}
 
         web = requests.get(hpo_download_web,headers = headers,verify=False)
@@ -375,37 +186,57 @@ class hpo_parser(object):
 
         return mt  
     
-    def wget(self,url,mt,rawdir):
+    def getAll(self,urls,mt,rawdir):
+        '''
+        this function is set to download raw files for  specified urls 
+        args:
+            urls -- the urls of download web page of files
+            mt -- the latest version of hpo raw file
+            rawdir -- the raw directoty to store download file
+        '''
+        for url in urls:
 
-        filename = url.rsplit('/',1)[1].strip()
+            filename = url.rsplit('/',1)[1].strip()
 
-        if filename.endswith('obo'):
+            if filename.endswith('obo'):
 
-            savename = '{}_{}_{}.obo'.format(filename.split('.obo',1)[0].strip(),mt.replace('.','*'),today)
+                savename = '{}_{}_{}.obo'.format(filename.split('.obo',1)[0].strip(),mt.replace('.','*'),today)
 
-        elif filename.endswith('.tab'):
+            elif filename.endswith('.tab'):
 
-            savename = '{}_{}_{}.tab'.format(filename.split('.tab',1)[0].strip(),mt.replace('.','*'),today)
+                savename = '{}_{}_{}.tab'.format(filename.split('.tab',1)[0].strip(),mt.replace('.','*'),today)
 
-        else:
-            savename = '{}_{}_{}.txt'.format(filename.split('.txt',1)[0].strip(),mt.replace('.','*'),today)
+            else:
+                savename = '{}_{}_{}.txt'.format(filename.split('.txt',1)[0].strip(),mt.replace('.','*'),today)
 
-        storefilepath = pjoin(rawdir,savename)
+            storefilepath = pjoin(rawdir,savename)
 
-        command = 'wget -O {} {}'.format(storefilepath,url)
+            command = 'wget -O {} {}'.format(storefilepath,url)
 
-        os.popen(command)
+            os.popen(command)
 
-        return storefilepath
-
-    def info(self,filepath,fileversion):
-
+    def phenotype_info(self,filepaths):
+        '''
+        this function is set parser phenotype_info 
+        '''
+        print '+'*50
         colname = 'hpo.phenotype.info'
 
+        # before insert ,truncate collection
         col = self.db.get_collection(colname)
 
+        col.ensure_index([('HPO-ID',1),])
+
+        filepath = filepaths[0]  # just only one file
+
+        filename = psplit(filepath)[1].strip()
+
+        fileversion = filename.rsplit('_',1)[0].strip().rsplit('_',1)[1].strip()
+        
         col.insert({'dataVersion':fileversion,'dataDate':self.date,'colCreated':today,'file':'hp.obo'})
 
+        #--------------------------------------------------------------------------------------------------------------------------------
+        # read file
         obofile = open(filepath)
 
         # skip  term head 
@@ -427,6 +258,10 @@ class hpo_parser(object):
 
                 if aset:
 
+                    # change filed id to HPO-ID
+                    _id = aset.pop('id')
+                    aset['HPO-ID'] = _id
+                    aset['HPO-ID-LINK'] = 'http://compbio.charite.de/hpoweb/showterm?id={}'.format(_id)
                     col.insert(aset)
                      
                     print 'hpo_phenotype line','obo',n
@@ -434,7 +269,6 @@ class hpo_parser(object):
                 aset = dict()
 
             else:
-
                 line = line.strip()
 
                 if  bool(line):
@@ -444,21 +278,28 @@ class hpo_parser(object):
                     key = key.strip()
                     val = val.strip()
 
-                    if key in ['name','id']:
+                    if key == 'def':
+                        val = standarString(val,'','')
+                    else:
+                        val = standarString(val,'','.')
 
+                    if key in ['name','id']:
                         aset[key] = val
 
                     else:
 
                         if key not in aset:
-
                             aset[key] = list()
-
                         aset[key].append(val)
 
             n += 1
 
         if aset:
+
+            # change filed id to HPO-ID
+            _id = aset.pop('id')
+            aset['HPO-ID'] = _id
+            aset['HPO-ID-LINK'] = 'http://compbio.charite.de/hpoweb/showterm?id={}'.format(_id)
 
             col.insert(aset)
                      
@@ -466,18 +307,33 @@ class hpo_parser(object):
 
         print 'hpo.phenotype.info completed! '
 
-    def disgene(self,filepath,fileversion):
+    def phenotype_gene(self,filepath):
+        '''
+        this function is set parser phenotype_gene 
+        '''
+        print '+'*50
+        colname = 'hpo.phenotype.gene'
 
-        colname = 'hpo.phenotype.disgene'
-
+        # before insert ,truncate collection
         col = self.db.get_collection(colname)
 
-        if not col.find_one({'dataVersion':fileversion}):
-            col.insert({'dataVersion':fileversion,'dataDate':self.date,'colCreated':today,'file':'OMIM_ALL_FREQUENCIES_diseases_to_genes_to_phenotypes,ORPHA_ALL_FREQUENCIES_diseases_to_genes_to_phenotypes'})
+        col.ensure_index([('HPO-ID',1),])
+        col.ensure_index([('Gene-ID',1),])
+        col.ensure_index([('HPO-ID',1),('Gene-ID',1),])
 
+        filepath = filepaths[0]  # just only one file
+
+        filename = psplit(filepath)[1].strip()
+
+        fileversion = filename.rsplit('_',1)[0].strip().rsplit('_',1)[1].strip()
+        
+        col.insert({'dataVersion':fileversion,'dataDate':self.date,'colCreated':today,'file':'ALL_SOURCES_ALL_FREQUENCIES_phenotype_to_genes'})
+
+        #--------------------------------------------------------------------------------------------------------------------------------
+        # read file
         tsvfile = open(filepath)
 
-        keys = ['diseaseId','gene-symbol','gene-id(entrez)','HPO-ID','HPO-term-name']
+        keys = ['HPO-ID','HPO-Name','Gene-ID','Gene-Name']
 
         n = 0 
 
@@ -490,28 +346,35 @@ class hpo_parser(object):
 
             dic = dict([(key,val) for key,val in zip(keys,data)])
 
-            diseaseId = dic.get('diseaseId')
-
-            db = diseaseId.split(':')[0].strip()
-
-            dic['database'] = db
-
             col.insert(dic)
-              
-            print 'hpo.phenotype.disgene txt line',n
 
             n += 1
+              
+            print 'hpo.phenotype.gene txt line',n
 
-    def disease(self,filepath,fileversion):
-
+    def phenotype_disease(self,filepath):
+        '''
+        this function is set parser phenotype_disease 
+        '''
+        print '+'*50
         colname = 'hpo.phenotype.disease'
 
+        # before insert ,truncate collection
         delCol('mydb_v1',colname)
 
         col = self.db.get_collection(colname)
+        col.ensure_index([('HPO-ID',1),])
+
+        filepath = filepaths[0]  # just only one file
+
+        filename = psplit(filepath)[1].strip()
+
+        fileversion = filename.rsplit('_',1)[0].strip().rsplit('_',1)[1].strip()
 
         col.insert({'dataVersion':fileversion,'dataDate':self.date,'colCreated':today,'file':'phenotype_annotation'})
 
+        #--------------------------------------------------------------------------------------------------------------------------------
+        # read file
         tabfile = open(filepath)
 
         keys = ['DB','DB_Object_ID','DB_Name','Qualifier','HPO-ID','DB:Reference','Evidence_code','Onset_modifier','Frequency_modifier','with','Aspect','Synonym','Date','Assigned_by']
@@ -539,49 +402,138 @@ class hpo_parser(object):
 
             n += 1
 
-    def gene(self,filepath,fileversion):
+    def phenotype_disgene(self,filepaths):
+        '''
+        this function is set parser phenotype_disgene 
+        '''
+        print '+'*50
+        colname = 'hpo.phenotype.disgene'
 
-        colname = 'hpo.phenotype.gene'
+        # before insert ,truncate collection
+        delCol('mydb_v1',colname)
 
         col = self.db.get_collection(colname)
+        col.ensure_index([('HPO-ID',1),])
+        col.ensure_index([('gene-id(entrez)',1),])
 
-        col.insert({'dataVersion':fileversion,'dataDate':self.date,'colCreated':today,'file':'ALL_SOURCES_ALL_FREQUENCIES_phenotype_to_genes'})
+        #--------------------------------------------------------------------------------------------------------------------------------
+        for filepath in filepaths:
 
-        tsvfile = open(filepath)
+            filename = psplit(filepath)[1].strip()
 
-        keys = ['HPO-ID','HPO-Name','Gene-ID','Gene-Name']
+            fileversion = filename.rsplit('_',1)[0].strip().rsplit('_',1)[1].strip()
 
-        n = 0 
+            if not col.find_one({'dataVersion':fileversion}):
+                col.insert({'dataVersion':fileversion,'dataDate':self.date,'colCreated':today,'file':'OMIM_ALL_FREQUENCIES_diseases_to_genes_to_phenotypes,ORPHA_ALL_FREQUENCIES_diseases_to_genes_to_phenotypes'})
+            #--------------------------------------------------------------------------------------------------------------------------------
+            # read file
+            tsvfile = open(filepath)
 
-        for line in tsvfile:
+            keys = ['diseaseId','gene-symbol','gene-id(entrez)','HPO-ID','HPO-term-name']
 
-            if line.startswith('#'):
-                continue
+            n = 0 
 
-            data = line.strip().split('\t')
+            for line in tsvfile:
 
-            dic = dict([(key,val) for key,val in zip(keys,data)])
+                if line.startswith('#'):
+                    continue
 
-            col.insert(dic)
-              
-            print 'hpo.phenotype.gene txt line',n
+                data = line.strip().split('\t')
 
-            n += 1
+                dic = dict([(key,val) for key,val in zip(keys,data)])
+
+                diseaseId = dic.get('diseaseId')
+
+                db = diseaseId.split(':')[0].strip()
+
+                dic['database'] = db
+
+                col.insert(dic)
+                  
+                print 'hpo.phenotype.disgene txt line',n
+
+                n += 1
+
+class dbMap(object):
+
+    '''
+    this class is set to map hpo  id to other db
+    '''
+    def __init__(self):
+
+        import commap
+
+        from commap import comMap
+
+        (db,db_cols) = initDB('mydb_v1') 
+
+        self.db = db
+
+        self.db_cols = db_cols
+
+        process = commap.comMap()
+
+        self.process = process
+
+    def dbID2hgncSymbol(self):
+        '''
+        this function is to create a mapping relation between hpo id with HGNC Symbol
+        '''
+        entrez2symbol = self.process.entrezID2hgncSymbol()
+
+        hpo_phenotype_gene_col = self.db_cols.get('hpo.phenotype.gene')
+
+        output = dict()
+
+        hgncSymbol2hpoID = output
+
+        hpo_phenotype_gene_docs = hpo_phenotype_gene_col.find({})
+
+        for doc in hpo_phenotype_gene_docs:
+
+            hpo_id = doc.get('HPO-ID')
+
+            gene_id = doc.get('Gene-ID')
+
+            gene_symbol = entrez2symbol.get(gene_id)
+
+            if gene_symbol:
+                
+                for symbol in gene_symbol:
+
+                    if symbol not in output:
+                        output[symbol] = list()
+
+                    output[symbol].append(hpo_id)
+
+        # dedup val for every key
+        for key,val in output.items():
+            val = list(set(val))
+            output[key] = val    
+
+        print 'hgncSymbol2hpoID',len(output)
+
+        # with open('./hgncSymbol2hpoID.json','w') as wf:
+        #     json.dump(output,wf,indent=8)
+            
+        return  (output,'HPO-ID')
+
+class dbFilter(object):
+
+    '''this class is set to filter part field of data in collections  in mongodb '''
+
+    def __init__(self, arg):
+        super(dbFilter, self).__init__()
+        self.arg = arg
+        
 
 def main():
 
     modelhelp = model_help.replace('&'*6,'HPO_Phenotypic').replace('#'*6,'hpo_phenotype')
 
-    funcs = (downloadData,extractData,updateData,selectData,dbMap,hpo_phenotype_store)
+    funcs = (downloadData,extractData,updateData,selectData,hpo_phenotype_store)
 
     getOpts(modelhelp,funcs=funcs)
         
 if __name__ == '__main__':
     main()
-    # filepaths,date = downloadData(redownload=True)
-    rawdir = '/home/user/project/dbproject/mydb_v1/hpo_phenotype/dataraw/phenotype_171228100957/'
-    filepaths = [pjoin(rawdir,filename) for filename in listdir(rawdir)]
-    extractData(filepaths,'171227151339')
-
-    # man = dbMap('171212143159')
-    # man.mapping()

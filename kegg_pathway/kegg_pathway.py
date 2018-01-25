@@ -23,8 +23,7 @@ model_name = psplit(os.path.abspath(__file__))[1]
 log_path = pjoin(kegg_pathway_model,'kegg_pathway.log')
 
 # main code
-
-def downloadData(redownload = False,rawdir = None):
+def downloadData(redownload = False ):
 
     '''
     this function is to download the raw data from kegg web
@@ -42,77 +41,89 @@ def downloadData(redownload = False,rawdir = None):
 
     if redownload or not existkeggFile or  choice == 'y':
 
-        if not rawdir:
+        rawdir = pjoin(kegg_pathway_raw,'pathway_{}'.format(today))
 
-            rawdir = pjoin(kegg_pathway_raw,'pathway_{}'.format('171226090923'))
+        createDir(rawdir)
+        #--------------------------------------------------------------------------------------------------------------------
+        process = parser(today)
 
-        process = kegg_parser(today)
+        # mt = process.getMt(kegg_pathway_web)
 
-        pathway_mt = process.getMt(kegg_pathway_web)
+        # 1. download pathway  and disease
 
-        #download pathway  and disease
-
-        for url in [kegg_disease_web1,kegg_disease_web2,]:#kegg_pathway_download]:
-            process.wget(url,rawdir)
+        process.getAll(keggfilename_web,rawdir)
+    #--------------------------------------------------------------------------------------------------------------------
+    #  generate .log file in current  path
 
     if not os.path.exists(log_path):
+        initLogFile('kegg_pathway',model_name,kegg_pathway_model,rawdir=rawdir)
+    else:
+        expanLogFile(log_path,model_name,rawdir)
+    #--------------------------------------------------------------------------------------------------------------------
+    # generate .files file in database
+    update_file_heads =dict()
 
-        with open(log_path,'w') as wf:
-            json.dump({'hsa00001.json':[(pathway_mt,today,model_name),]},wf,indent=2)
+    for filename in listdir(rawdir):
 
-    print  'datadowload completed !'
-    
+        head = filename.split('_213')[0].strip()
+
+        update_file_heads[head] = pjoin(rawdir,filename)
+
+    with open(pjoin(kegg_pathway_db,'pathway_{}.files'.format(today)),'w') as wf:
+        json.dump(update_file_heads,wf,indent=2)
+
+    #--------------------------------------------------------------------------------------------------------------------
+    # return filepaths to extract     
     filepaths = [pjoin(rawdir,filename) for filename  in listdir(rawdir)]
 
-    sleep(5)
+    return (filepaths,today)
 
-    return (filepaths,(today,pathway_mt))
+    print  'datadowload completed !'
 
-def extractData(filepaths,version):
+def extractData(filepaths,date):
+    '''
+    this function is set to distribute all filepath to parser to process
+    args:
+    filepaths -- all filepaths to be parserd
+    date -- the date of  data download
+    '''
+    # 1. distribute filepaths for parser
+    pathway_info_paths = [path for path in filepaths if psplit(path)[1].strip().startswith('hsa00001')]
 
-    for name in ['info','gene','entry','reaction','relation','disease']:
+    pathway_disease_paths = [path for path in filepaths if psplit(path)[1].strip().startswith('br0840')]
 
-        delCol('mydb_v1','kegg.pathway.{}'.format(name))
+    pathway_xml_paths = [path for path in filepaths if psplit(path)[1].strip().endswith('.xml')]
 
-    for filepath in filepaths:
-        
-        filename = psplit(filepath)[1].strip()
+    pathway_gene_paths = pathway_info_paths
 
-        date = version[0]
-
-        fileversion = version[1].replace('&','')
-
-        pathway_raw = psplit(filepath)[0].strip()
-
-        process = kegg_parser(date)
-
-        if filename == 'hsa00001.json':
-            #-------------------------------------------------------------------------------
-                # kegg.path.gene
-            all_path = process.pathway(filepath,fileversion)
-
-        elif filename.startswith('br0840'):
-            # kegg.path.disease
-            process.pathway_disease(filepath,fileversion)
-
-    #-------------------------------------------------------------------------------
-        # get all  (XML FILE)
-
-    # func = lambda x:process.pathway_relation(x,pathway_raw)
-
-    # path_ids = all_path.keys()
-
-    # multiProcess(func,path_ids,size=50)
-
-    #-------------------------------------------------------------------------------
-        # extract entry  reaction and relations data from xml file
-    relation_filepaths = [pjoin(pathway_raw,filename) for filename in listdir(pathway_raw) if filename.endswith('.xml') ]
+    # 2. parser filepaths step by step
+    process = parser(date)
     
-    for filepath in relation_filepaths:
-        process.pathway_standar(filepath,fileversion,all_path)
+    # --------------------------------kegg.pathway.info-----------------------------------------------------------------------------
+    path_ids,fileversion = process.pathway_info(pathway_info_paths) 
+
+    # --------------------------------kegg.pathway.gene-----------------------------------------------------------------------------
+    process.pathway_gene(pathway_gene_paths) 
+
+    # --------------------------------kegg.pathway.disease-------------------------------------------------------------------------
+    process.pathway_disease(pathway_disease_paths)
+
+    #---------------------------------kegg.pathway.entry,reaction,relation-----------------------------------------------------
+    # 3. get all  (XML FILE) according to path_ids
+    if not pathway_xml_paths:
+
+        pathway_raw = psplit(filepaths[0])[0].strip()
+
+        func = lambda x:process.getRelation(x,fileversion,pathway_raw)
+
+        multiProcess(func,path_ids,size=50)
+
+        pathway_xml_paths = [path for path in filepaths if psplit(path)[1].strip().endswith('.xml')]
+
+    process.pathway_xml(pathway_xml_paths)
 
     #-------------------------------------------------------------------------------
-        # bkup all collections
+    # backup all collections
     _mongodb = pjoin(kegg_pathway_db,'pathway_{}'.format(date))
 
     createDir(_mongodb)
@@ -123,39 +134,63 @@ def extractData(filepaths,version):
 
     print 'relation extract and insert completed'
 
-def updateData(insert=False,_mongodb='../_mongodb/'):
-
+def updateData(insert=True):
+    
+    '''
+    this function is set to update all file in log
+    '''
     kegg_pathway_log = json.load(open(log_path))
 
-    rawdir = pjoin(kegg_pathway_raw,'pathway_update_{}'.format(today))
+    updated_rawdir = pjoin(kegg_pathway_raw,'pathway_{}'.format(today))
 
-    process = kegg_parser(today)
+    process = parser(today)
 
-    mt = process.getMt()
+    #-----------------------------------------------------------------------------------------------------------------
+    new = False
 
-    if mt != kegg_pathway_log.get('hsa00001.json')[-1][0]:
+    filename_url = dict()
 
-        createDir(rawdir)
+    for filename,url in keggfilename_web.items():
 
-        (filepath,version)= downloadData(redownload=True,rawdir=rawdir)
+        mt = process.getMt(url)
 
-        extractData(filepath,version)
+        if mt != kegg_pathway_log.get(filename)[-1][0]:
 
-        _map = dbMap(version)
+            new = True
 
-        _map.mapping()
+            createDir(updated_rawdir)
 
-        kegg_pathway_log['hsa00001.json'].append((mt,today,model_name))
+            filename_url[filename] = url
+
+            kegg_pathway_log[filename].append((mt,today,model_name))
+
+            print  '{} \'s new edition is {} '.format(filename,mt)
+
+        else:
+            print  '{} {} is the latest !'.format(filename,mt)  
+
+    #-----------------------------------------------------------------------------------------------------------------
+    if new:
+
+        process = parser(today)
+
+        process.getAll(filename_url,updated_rawdir)
 
         with open(log_path,'w') as wf:
-            json.dump(kegg_pathway_log,wf,indent=2)
 
-        print  '{} \'s new edition is {} '.format('kegg_pathway',mt)
+            json.dump(kegg_pathway_log,wf,indent=8)            
 
-        bakeupCol('kegg_pathway_{}'.format(version),'kegg_pathway',_mongodb)
-        
+        (latest_filepaths,version) = createNewVersion(kegg_pathway_raw,kegg_pathway_db,updated_rawdir,'pathway_',today)
+
+        if insert:
+
+            extractData(latest_filepaths.values(),version)
+
+        return 'update successfully'
+
     else:
-        print  '{} {} is the latest !'.format('kegg_pathway',mt)
+        
+        return 'new version is\'t detected'
 
 def selectData(querykey = 'path_id',value='00010'):
     '''
@@ -166,14 +201,16 @@ def selectData(querykey = 'path_id',value='00010'):
     '''
     conn = MongoClient('127.0.0.1', 27017 )
 
-    db = conn.mydb
+    db = conn.get_database('mydb_v1')
 
-    colnamehead = 'kegg_pathway'
+    colnamehead = 'kegg.pathway'
 
     dataFromDB(db,colnamehead,querykey,queryvalue=None)
 
-class kegg_parser(object):
-
+class parser(object):
+    '''
+    this class is set to parser all raw file to extract content we need and insert to mongodb
+    '''
     def __init__(self,date):
 
         conn = MongoClient('localhost',27017)
@@ -185,20 +222,33 @@ class kegg_parser(object):
         self.date = date
 
     def getMt(self,url):
-
+        '''
+        this function is set to get url's web page the last updated time
+        args:
+            url --  the url of download web page of file
+        '''
         headers = {'User_Agent':'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Ubuntu Chromium/37.0.2062.120 Chrome/37.0.2062.120 Safari/537.36'}
 
         web = requests.get(url,headers=headers,verify=False)
 
         soup = bs(web.content,'lxml')
 
-        mt = soup.select('body')[0].text.split('Last updated: ')[1].strip().replace(' ','&').replace(',','#')
+        mt = soup.select('body')[0].text.split('Last updated: ')[1].strip().replace(' ','').replace(',','').split('»'.decode('utf-8'))[0].strip()
+
+        mt = '213' + mt
 
         return mt
 
-    def wget(self,url,rawdir):
+    def getOne(self,filename,url,rawdir):
 
-            # download pathway  and disease file
+        '''
+        this function is set to download the data file by wget when a url given
+        agrs:
+        filename ~ the filename of download file
+        url ~ the url of download web page of file
+        rawdir ~ the raw directotr to store download file
+        '''
+        # set args for chrom driver
         options = webdriver.ChromeOptions()
 
         prefs = {'profile.default_content_settings.popups':0,'download.default_directory':rawdir}
@@ -207,6 +257,10 @@ class kegg_parser(object):
 
         driver = webdriver.Chrome(chrome_options=options)
 
+        # 1. get file last updated time
+        mt = self.getMt(url)
+
+        # 2. download file with chrom driver
         driver.get(url)
 
         download = driver.find_element_by_link_text('Download json')
@@ -217,248 +271,315 @@ class kegg_parser(object):
 
         driver.close()
 
-    def pathway(self,filepath,fileversion):
+        # 3.rename for download file
+        newfilename ='{}_{}_{}.json'.format(filename.split('.json')[0],mt,today)
 
-        gene_colname = 'kegg.pathway.gene'
+        old_path = pjoin(rawdir,filename)
 
-        delCol('mydb_v1',gene_colname)
+        new_path = pjoin(rawdir,newfilename)
 
-        gene_col = self.db.get_collection(gene_colname)
+        os.rename(old_path,new_path)
 
-        gene_col.insert({'dataVersion':fileversion,'dataDate':self.date,'colCreated':today,'file':'hsa00001'})
+    def getAll(self,filename_urls,rawdir):
+        '''
+        this function is set to download json file for  specified urls that have 'download json'
+        args:
+            urls -- the urls of download web page of files
+            rawdir -- the raw directoty to store download file
+        '''
+        # 1. set args for chrom driver
+        options = webdriver.ChromeOptions()
 
-        # insert basic info in kegg.pathway.info
+        prefs = {'profile.default_content_settings.popups':0,'download.default_directory':rawdir}
 
-        info_colname = 'kegg.pathway.info'
+        options.add_experimental_option('prefs',prefs)
 
-        delCol('mydb_v1',info_colname)
+        driver = webdriver.Chrome(chrome_options=options)
 
-        info_col = self.db.get_collection(info_colname)
+        filenames_mt = dict()
 
-        info_col.insert({'dataVersion':fileversion,'dataDate':self.date,'colCreated':today,'file':'hsa00001,relation_hsa?????.xml'})
+        for filename,url in filename_urls.items():
 
-        jsonfile = json.load(open(filepath))
+            mt = self.getMt(url)
 
-        filname = jsonfile.get('name')
+            filenames_mt[filename]= mt
 
-        childrens = jsonfile.get('children')
+            # 2. download file with chrom driver
+            driver.get(url)
 
-        all_path = dict()
+            download = driver.find_element_by_link_text('Download json')
 
-        n = 0
-        for path_class in childrens:
-            
-            path_class_name = path_class.get('name')
-            path_class_children = path_class.get('children')
+            download.click()
 
-            # print path_class_name
+        sleep(5)
 
-            for path_subclass in  path_class_children:
-                path_subclass_name = path_subclass.get('name')
-                path_subclass_children = path_subclass.get('children')
+        driver.close()
 
-                n  += len(path_subclass_children)
+        # 3.rename for download files
+        for filename in listdir(rawdir):
 
-                for path in path_subclass_children:
-                    
-                    path_name_info = path.get('name')
-                    path_gene_info = path.get('children')
+            newfilename ='{}_{}_{}.json'.format(filename.split('.json')[0],filenames_mt[filename],today)
 
-                    path_id = path_name_info.split(' ',1)[0].strip()
-                    path_name = path_name_info.rsplit('[PATH')[0].replace(path_id,'').strip()
+            old_path = pjoin(rawdir,filename)
 
-                    path_map_link = 'http://www.genome.jp/dbget-bin/www_bget?map{}'.format(path_id)
+            new_path = pjoin(rawdir,newfilename)
 
-                    path = {
-                    'path_id':path_id,
-                    'path_name':path_name,
-                    'path_org':'hsa',
-                    'path_class':path_class_name,
-                    'path_subclass':path_subclass_name,
-                    'path_map_link':path_map_link
-                    }
+            os.rename(old_path,new_path)
 
-                    info_col.insert(path)
+    def getRelation(self,path_id,fileversion,rawdir):
 
-                    if path_gene_info:
+        '''this function is set to download relation xml file  with specified path_id'''
 
-                        genes = dict()
-
-                        for gene in path_gene_info:
-
-                            gene_id,gene_symbol,gene_name,ko_entry,ko_entry,definition= ('','','','','','')
-
-                            gene_name_info = gene.get('name')
-
-                            ko_head= gene_name_info.split('\t')[0]
-
-                            if gene_name_info.count('\t'):
-                                ko_tail= gene_name_info.split('\t')[1]
-                            else:
-                                ko_tail = ''
-                            
-                            if ko_head.count(';'):
-                                (gene_id,gene_symbol) = tuple(ko_head.split(';',1)[0].strip().split(' ',1))
-                                gene_name = ko_head.split(';',1)[1].strip()
-
-                            else:
-                                gene_id = ko_head.split(' ',1)[0]
-                                gene_name = ko_head.split(' ',1)[1].strip()
-
-                            gene={
-                            'gene_symbol':gene_symbol,
-                            'gene_name':gene_name,
-                            }
-                            if ko_tail:
-                                (ko_entry,ko_name) = tuple(ko_tail.split(';',1)[0].strip().split(' ',1))
-                                definition = ko_tail.split(';',1)[1].strip()
-                                gene.update({
-                                    'ko_entry':ko_entry,
-                                    'ko_name':ko_name,
-                                    'definition':definition
-                                    })
-                            else:
-                                print 'no ko ',gene_name_info
-
-                            gene_col.insert({
-                                'path_id':path_id,
-                                'path_org':'hsa',
-                                'gene_id':gene_id,
-                                'gene_symbol':gene_symbol,
-                                'gene_name':gene_name,
-                                'ko_entry':ko_entry,
-                                'ko_name':ko_name,
-                                'definition':definition,
-                            })
-
-                            genes[gene_id] = gene
-
-                            print 'kegg.pathway.gene:',gene_id
-
-                            path.update({'gene':genes})
-
-                    all_path[path_id] = path
-
-        print 'pathways:' ,n
-    
-        print 'pathway extract and insert completed'
-        
-        return all_path
-
-    def pathway_relation(self,path_id,rawdir):
-
-        # download relation xml file
         url = 'http://rest.kegg.jp/get/hsa{}/kgml'.format(path_id)
 
-        savefile_path = pjoin(rawdir,'relation_hsa{}.xml'.format(path_id))
+        savefile_path = pjoin(rawdir,'relation_hsa{}_{}_{}.xml'.format(path_id,fileversion,today))
 
         wget = 'wget --retry-connrefused  -O {} {}'.format(savefile_path,url)
 
         os.popen(wget)
 
-    def pathway_disease(self,savefile_path,fileversion):
+    def pathway_info(self,filepaths):
+        '''
+        this function is set parser pathway_info 
+        '''
+        print '+'*50
+        info_colname = 'kegg.pathway.info'
 
+        # before insert ,truncate collection
+        delCol('mydb_v1',info_colname)
+
+        info_col = self.db.get_collection(info_colname)
+
+        info_col.ensure_index([('path_id',1),])
+        #----------------------------------------------------------------------------------------------------------------------
+        path_ids = list()
+
+        for filepath in filepaths:
+
+            filename = psplit(filepath)[1].strip()
+
+            fileversion = filename.rsplit('_',1)[0].strip().rsplit('_',1)[1].strip()
+
+            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            # insert version info 
+            if not info_col.find_one({'colCreated':{'$exists':True}}):
+                info_col.insert({'dataVersion':fileversion,'dataDate':self.date,'colCreated':today,'file':'hsa00001,relation_hsa?????.xml'})
+
+            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            # read file
+            childrens = json.load(open(filepath)).get('children')
+
+            n = 0
+
+            for path_class in childrens:
+                
+                path_class_name = path_class.get('name')
+                path_class_children = path_class.get('children')
+
+                for path_subclass in  path_class_children:
+                    path_subclass_name = path_subclass.get('name')
+                    path_subclass_children = path_subclass.get('children')
+
+                    n  += len(path_subclass_children)
+
+                    for path in path_subclass_children:
+                        
+                        path_name_info = path.get('name')
+
+                        path_id = path_name_info.split(' ',1)[0].strip()
+
+                        path_name = path_name_info.rsplit('[PATH')[0].replace(path_id,'').strip()
+
+                        path_map_link = 'http://www.genome.jp/dbget-bin/www_bget?map{}'.format(path_id)
+                        
+                        # insert basic info in kegg.pathway.info
+                        path = {
+                        'path_id':path_id,
+                        'path_name':path_name,
+                        'path_org':'hsa',
+                        'path_class':path_class_name,
+                        'path_subclass':path_subclass_name,
+                        'path_map_link':path_map_link
+                        }
+
+                        info_col.insert(path)
+
+                        path_ids.append(path_id)
+
+        path_ids = list(set(path_ids))
+
+        print 'path_ids',len(path_ids)
+
+        return (path_ids,fileversion)
+
+    def pathway_gene(self,filepaths):
+        '''
+        this function is set parser pathway_gene 
+        '''
+        print '*'*50
+        gene_colname = 'kegg.pathway.gene'
+
+        # before insert ,truncate collection
+        delCol('mydb_v1',gene_colname)
+
+        gene_col = self.db.get_collection(gene_colname)
+
+        gene_col.ensure_index([('path_id',1),('gene_id',1)])
+
+        #----------------------------------------------------------------------------------------------------------------------
+        for filepath in filepaths:
+
+            filename = psplit(filepath)[1].strip()
+
+            fileversion = filename.rsplit('_',1)[0].strip().rsplit('_',1)[1].strip()
+
+            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            # insert version info 
+            if not gene_col.find_one({'colCreated':{'$exists':True}}):
+                gene_col.insert({'dataVersion':fileversion,'dataDate':self.date,'colCreated':today,'file':'hsa00001'})
+
+            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            # read file
+            childrens = json.load(open(filepath)).get('children')
+
+            for path_class in childrens:
+                
+                path_class_children = path_class.get('children')
+
+                for path_subclass in  path_class_children:
+
+                    path_subclass_children = path_subclass.get('children')
+
+                    for path in path_subclass_children:
+                        
+                        path_name_info = path.get('name')
+                        path_gene_info = path.get('children')
+
+                        path_id = path_name_info.split(' ',1)[0].strip()
+
+                        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                        if path_gene_info:
+
+                            genes = dict()
+
+                            for gene in path_gene_info:
+
+                                gene_id,gene_symbol,gene_name,ko_entry,ko_entry,definition= ('','','','','','')
+
+                                gene_name_info = gene.get('name')
+
+                                ko_head= gene_name_info.split('\t')[0]
+
+                                if gene_name_info.count('\t'):
+                                    ko_tail= gene_name_info.split('\t')[1]
+                                else:
+                                    ko_tail = ''
+                                
+                                if ko_head.count(';'):
+                                    (gene_id,gene_symbol) = tuple(ko_head.split(';',1)[0].strip().split(' ',1))
+                                    gene_name = ko_head.split(';',1)[1].strip()
+
+                                else:
+                                    gene_id = ko_head.split(' ',1)[0]
+                                    gene_name = ko_head.split(' ',1)[1].strip()
+
+                                gene={
+                                'gene_symbol':gene_symbol,
+                                'gene_name':gene_name,
+                                }
+                                if ko_tail:
+                                    (ko_entry,ko_name) = tuple(ko_tail.split(';',1)[0].strip().split(' ',1))
+                                    definition = ko_tail.split(';',1)[1].strip()
+                                    gene.update({
+                                        'ko_entry':ko_entry,
+                                        'ko_name':ko_name,
+                                        'definition':definition
+                                        })
+                                else:
+                                    print 'no ko ',gene_name_info
+
+                                gene_col.insert({
+                                    'path_id':path_id,
+                                    'path_org':'hsa',
+                                    'gene_id':gene_id,
+                                    'gene_symbol':gene_symbol,
+                                    'gene_name':gene_name,
+                                    'ko_entry':ko_entry,
+                                    'ko_name':ko_name,
+                                    'definition':definition,
+                                })
+
+                                genes[gene_id] = gene
+
+                                # print 'kegg.pathway.gene:',gene_id
+
+    def pathway_disease(self,filepaths):
+        '''
+        this function is set parser pathway_disease 
+        '''        
+        print '*'*50
         colname = 'kegg.pathway.disease'
+
+        # before insert ,truncate collection
+        delCol('mydb_v1',colname)
 
         disease_col = self.db.get_collection(colname)
 
-        if not disease_col.find_one({'dataVersion':fileversion}):
+        disease_col.ensure_index([('path_id',1),])       
+        #----------------------------------------------------------------------------------------------------------------------
+        for filepath in filepaths:
 
-            disease_col.insert({'dataVersion':fileversion,'dataDate':self.date,'colCreated':today,'file':'br0840*'})
-        
-        jsonfile = json.load(open(savefile_path))
+            filename = psplit(filepath)[1].strip()
 
-        disease = jsonfile.get('children')
+            fileversion = filename.rsplit('_',1)[0].strip().rsplit('_',1)[1].strip()
 
-        print '*'*50
+            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            # insert version info 
+            if not disease_col.find_one({'colCreated':{'$exists':True}}):
+                disease_col.insert({'dataVersion':fileversion,'dataDate':self.date,'colCreated':today,'file':'br08401,br08402'})
 
-        for dis in disease:
+            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            # read file
+            disease = json.load(open(filepath)).get('children')
 
-            dis_class = dis.get('name')
+            for dis in disease:
 
-            dis_class_info = dis.get('children')
+                dis_class = dis.get('name')
+                dis_class_info = dis.get('children')
 
-            # print dis_class
+                for dis_sub in dis_class_info:
 
-            for dis_sub in dis_class_info:
+                    dis_subclass = dis_sub.get('name')
+                    dis_subclass_info = dis_sub.get('children')
 
-                dis_subclass = dis_sub.get('name')
+                    for _info in dis_subclass_info:
 
-                dis_subclass_info = dis_sub.get('children')
+                        dis_info = _info.get('name')
+                        dis_id = dis_info.split(' ')[0].strip()
 
-                # print ' '*4,dis_subclass
+                        if dis_info.count('[PATH:hsa') :
 
-                for _info in dis_subclass_info:
+                            dis_path = dis_info.split('[PATH:hsa')[1].strip().replace(']','')
+                            dis_name =dis_info.split('[PATH:')[0].replace(dis_id,'').strip()
 
-                    dis_info = _info.get('name')
+                            disease_col.insert({
+                                'path_id':dis_path,
+                                'path_org':'hsa',
+                                'disease_id':dis_id,
+                                'disease_name':dis_name,
+                                'disease_class':dis_class,
+                                'disease_subclass':dis_subclass
+                                })
 
-                    dis_id = dis_info.split(' ')[0].strip()
+    def pathway_entry(self,path_id,entry,entry_col):
 
-                    if dis_info.count('[PATH:hsa') :
-
-                        dis_path = dis_info.split('[PATH:hsa')[1].strip().replace(']','')
-                        dis_name =dis_info.split('[PATH:')[0].replace(dis_id,'').strip()
-
-                        disease_col.insert({
-                            'path_id':dis_path,
-                            'path_org':'hsa',
-                            'disease_id':dis_id,
-                            'disease_name':dis_name,
-                            'disease_class':dis_class,
-                            'disease_subclass':dis_subclass
-                            })
-
-                        # print ' '*8,dis_id
-                        # print ' '*8,dis_name
-                        # print ' '*8,dis_path
-                        # print ' '*8, '-'*20
-         
-    def pathway_standar(self,savefile_path,fileversion,all_path):
-
-        colname = 'kegg.pathway.info'
-
-        info_col = self.db.get_collection(colname)
-
-        # parser relation in xml file
-        xmlfile = open(savefile_path)
-
-        try:
-            dictfile = parse(xmlfile)
-        except:
-            # print savefile_path,'relation xml file is blank'
-            return
-        #-------------------------------------------------------------------------------------------------------------------------------------------------------
-        # create pathway.info
-        pathway_info  = dictfile.get('pathway')
-
-        path_id = pathway_info.get('@number')
-
-        path_image = pathway_info.get('@image')
-
-        path_link = pathway_info.get('@link')
-
-        info_col.update(
-            {'path_id':path_id},
-            {'$set':{'path_image':path_image,'path_link':path_link}},
-            False,
-            True
-            )
-
-        #-------------------------------------------------------------------------------------------------------------------------------------------------------
-        #create pathway.entry
-        entry = pathway_info.get('entry')
-
-        colname = 'kegg.pathway.entry'
-
-        entry_col = self.db.get_collection(colname)
-
-        if not entry_col.find_one({'file':'relation_hsa?????.xml'}):
-            entry_col.insert({'dataVersion':fileversion,'dataDate':self.date,'colCreated':today,'file':'relation_hsa?????.xml'})
+        '''this function is set to parser entry info in  xml file'''
 
         entrydict= dict()
 
         if entry:
-
+            #------------------------------------------------------------------------------------------------------------
+            # get every entry basic info
             for e in entry:
 
                 component = e.get('component')
@@ -476,7 +597,6 @@ class kegg_parser(object):
 
                 else:
                     graphics_dic = dict()
-
                 entrydict.update({
                     e.get('@id'):{
                     'entry_name':e.get('@name'),
@@ -486,6 +606,8 @@ class kegg_parser(object):
                     'graphics':graphics_dic,
                     }})
             
+            #-----------------------------------------------------------------------------------------------------------
+            # transform component id to entry name info
             for entry_id,val  in entrydict.items():
 
                 component = val.pop('component')
@@ -508,16 +630,11 @@ class kegg_parser(object):
 
                 entry_col.insert(val)
 
-        #-------------------------------------------------------------------------------------------------------------------------------------------------------
-        #create pathway.reaction
-        colname = 'kegg.pathway.reaction'
+        return entrydict
 
-        reaction_col = self.db.get_collection(colname)
+    def pathway_reaction(self,path_id,reaction,reaction_col):
 
-        if not reaction_col.find_one({'file':'relation_hsa?????.xml'}):
-            reaction_col.insert({'dataVersion':fileversion,'dataDate':self.date,'colCreated':today,'file':'relation_hsa?????.xml'})
-
-        reaction = pathway_info.get('reaction')
+        '''this function is set to parser reaction info in  xml file'''
 
         if reaction:
 
@@ -538,7 +655,7 @@ class kegg_parser(object):
                         reaction_sp_val_dic[reaction_sp] = [val.get('@name'),]
 
                     elif isinstance(val,list):
-   
+
                         [reaction_sp_val_dic[reaction_sp].append(sp.get('@name')) for sp in val]
                            
                 reaction_col.insert({
@@ -551,18 +668,9 @@ class kegg_parser(object):
                     'reaction_product': reaction_sp_val_dic['reaction_product'],
                         })
 
-        #-------------------------------------------------------------------------------------------------------------------------------------------------------
-        #create pathway.relation
-        colname = 'kegg.pathway.relation'
+    def pathway_relation(self,path_id,relation,relation_col,entrydict):
 
-        relation_col = self.db.get_collection(colname)
-
-        if not relation_col.find_one({'file':'relation_hsa?????.xml'}):
-            relation_col.insert({'dataVersion':fileversion,'dataDate':self.date,'colCreated':today,'file':'relation_hsa?????.xml'})
-
-        relation = pathway_info.get('relation')
-
-        relationlist = list()
+        '''this function is set to parser relation info in  xml file'''
 
         if relation:
 
@@ -635,10 +743,77 @@ class kegg_parser(object):
                     'relation_subtype':relation_subtype_value,
                     })
 
+    def pathway_xml(self,filepaths):
+
+        '''this function is set to parser xml file'''
+
+        print '*'*50
+        info_col = self.db.get_collection('kegg.pathway.info')
+
+        # before insert ,truncate collection
+        for it in ['entry','reaction','relation']:
+
+            colname = 'kegg.pathway.{}'.format(it)
+
+            delCol('mydb_v1',colname)
+
+            col = self.db.get_collection(colname)
+            col.ensure_index([('path_id',1),])       
+
+        entry_col = self.db.get_collection('kegg.pathway.entry')
+        reaction_col = self.db.get_collection('kegg.pathway.reaction')
+        relation_col = self.db.get_collection('kegg.pathway.relation')
+
+        #----------------------------------------------------------------------------------------------------------------------
+        for filepath in filepaths:
+
+            filename = psplit(filepath)[1].strip()
+
+            fileversion = filename.rsplit('_',1)[0].strip().rsplit('_',1)[1].strip()
+
+            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            # insert version info 
+            for col in [entry_col,reaction_col,relation_col]:
+                if not col.find_one({'colCreated':{'$exists':True}}):
+                    col.insert({'dataVersion':fileversion,'dataDate':self.date,'colCreated':today,'file':'relation_hsa?????.xml'})
+
+            xmlfile = open(filepath)
+
+            try:
+                dictfile = parse(xmlfile)
+            except:
+                # print filepath,'relation xml file is blank'
+                continue
+            #-----------------------------------------------------------------------------------------------------------------------
+            # add pathway.info
+            pathway_info  = dictfile.get('pathway')
+
+            path_id = pathway_info.get('@number')
+            path_image = pathway_info.get('@image')
+            path_link = pathway_info.get('@link')
+            info_col.update(
+                {'path_id':path_id},
+                {'$set':{'path_image':path_image,'path_link':path_link}},
+                False,
+                True
+                )
+
+            # add pathway.entry
+            entry = pathway_info.get('entry')
+            entrydict = self.pathway_entry(path_id,entry,entry_col)
+
+            #add pathway.reaction
+            reaction = pathway_info.get('reaction')
+            self.pathway_reaction(path_id,reaction,reaction_col)
+
+            #add pathway.relation
+            relation = pathway_info.get('relation')
+            self.pathway_relation(path_id,relation,relation_col,entrydict)
+
 class dbMap(object):
-
-    #class introduction
-
+    '''
+    this class is set to map ncbi gene id to other db
+    '''
     def __init__(self):
 
         import commap
@@ -657,9 +832,9 @@ class dbMap(object):
 
     def dbID2hgncSymbol(self):
         '''
-        this function is to create a mapping relation between kegg path id  with HGNC Symbol
+        this function is to create a mapping relation between kegg path id  with hgnc symbol
         '''
-        # because kegg gene id  is entrez id 
+        # because kegg gene id  is entrez id ,so entrez2symbol imported
         entrez2symbol = self.process.entrezID2hgncSymbol()
 
         kegg_path_gene_col = self.db_cols.get('kegg.pathway.gene')
@@ -695,31 +870,27 @@ class dbMap(object):
 
         print 'hgncSymbol2keggPathID',len(output)
 
-        with open('./hgncSymbol2keggPathID.json','w') as wf:
-            json.dump(output,wf,indent=8)
+        # with open('./hgncSymbol2keggPathID.json','w') as wf:
+        #     json.dump(output,wf,indent=8)
 
         return (hgncSymbol2keggPathID,'path_id')
-    
+
+
+class dbFilter(object):
+    '''this class is set to filter part field of data in collections  in mongodb '''
+    def __init__(self, arg):
+        super(dbFilter, self).__init__()
+        self.arg = arg
+
 def main():
 
     modelhelp = model_help.replace('&'*6,'KEGG_PATHWAY').replace('#'*6,'kegg_pathway')
 
-    funcs = (downloadData,extractData,updateData,selectData,dbMap,kegg_pathway_store)
+    funcs = (downloadData,extractData,updateData,selectData,kegg_pathway_store)
 
     getOpts(modelhelp,funcs=funcs)
         
 if __name__ == '__main__':
-
     main()
-    # downloadData(redownload = True)
-    # rawdir = '/home/user/project/dbproject/mydb_v1/kegg_pathway/dataraw/pathway_171226090923/'
-
-    # filepaths = [pjoin(rawdir,filename) for filename  in listdir(rawdir)]
-
-    # version = ('171226090923','December&25#&2017')
-
-    # extractData(filepaths,version)
-    man = dbMap()
-    man.dbID2hgncSymbol()
 
 

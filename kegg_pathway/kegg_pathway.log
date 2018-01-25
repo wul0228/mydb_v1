@@ -1,0 +1,38 @@
+{
+        "br08402.json": [
+                [
+                        "213December262017", 
+                        "180123111911", 
+                        "kegg_pathway.py"
+                ], 
+                [
+                        "213January222018", 
+                        "180125091158", 
+                        "kegg_pathway.py"
+                ]
+        ], 
+        "br08401.json": [
+                [
+                        "213November92016", 
+                        "180123111911", 
+                        "kegg_pathway.py"
+                ]
+        ], 
+        "hsa00001.json": [
+                [
+                        "December&25#&2017", 
+                        "171226090923", 
+                        "kegg_pathway.py"
+                ], 
+                [
+                        "213January222018", 
+                        "180123111911", 
+                        "kegg_pathway.py"
+                ], 
+                [
+                        "213January242018", 
+                        "180125091158", 
+                        "kegg_pathway.py"
+                ]
+        ]
+}

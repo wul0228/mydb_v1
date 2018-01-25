@@ -1,0 +1,187 @@
+
+++++++ reactom_pathway Documentation ++++++
+
+edited@2018/01/23
+
+please direct all questions to ling.wu@myhealthpathway.com
+
+1. brief introduction of sub-files
+.
+├── database                              ---- contains the all version of collection in mongodb
+├── datamap                              ---- contains the map relation between reactom_pathway with other db
+├── dataraw                                ---- contains the raw data from reactom web site
+├── datastore                              ---- contains the standard data convert from to  dataraw 
+├── __init__.py                             ---- the inited  file of package
+├── __init__.pyc                            ----the compiled file of  __init__.py
+├── reactom_pathway.log          ---- contains the database version,update date,model version
+├── reactom_pathway.py           ---- contains the main code of reactom_pathway's process
+├── reactom_pathway.pyc          ----the compiled file of  reactom_pathway.py
+└── reactom_pathway.readme   ---- model  introduction
+
+2. description about reactom_pathway.py
+
+the main job of reactom_pathway is to download,extract,standar,insert and update  data from reactom web site
+
+Functions
+ 
+(1) downloadData(redownload = False)
+    description : download the raw data from reactom website
+    args:
+        redownload ~ default False, check to see if exists an old edition before download
+                               ~ if set to true, download directly with no check
+
+(2) extractData(filepaths,date)
+    description : distribute all filepath to parser to process
+    args:
+        filepaths ~ all filepaths to be parserd
+        date        ~ the date of  data download
+
+(3) updateData(insert=True)
+    description :this function is set to update all file in log
+    args:
+        insert ~ default False,with no extract  after download data
+                   ~ if set tp true, extract all after download
+
+(4) selectDate(querykey,queryvalue):
+    description : supply a interface to select data from database
+    args:
+        querykey    ~ the filed name 
+        queryvalue ~ the field value
+
+Class
+
+(1) parser
+    
+    description: parser all raw file to extract content we need and insert to mongodb
+    
+    functions:
+
+        a. getUrl(self)
+            description:get all download url of raw files
+
+        b. getOne(self,urlmts,rawdir)
+            description: download raw file and rename it 
+            args:
+                urlmts ~ a dict contain a file's url and mt
+                rawdir ~ the raw directoty to store download file
+
+        c. getNode(self,dbId)
+            description:get a entry basic infos from reactom web site  that not included in reactom.pathway.entry 
+            args:
+                dbId ~ the identifier of  a entry in reactom
+
+        d. pathway_info(self,filepaths)
+            description:parser pathway info files and  insert to mongdb
+            args:
+                filepaths ~ filepath of pathway info files
+
+        e.  pathway_gene(self,filepaths)
+            description:parser pathway gene files and  insert to mongdb
+            args:
+                filepaths ~ filepath of pathway gene files
+                
+        f. pathway_graph(self,filepaths)
+            description:parser pathway graph files and  insert to mongdb
+            args:
+                filepaths ~ filepath of pathway graph files
+
+        g. pathway_subpath(self,filepaths)
+            description:parser pathway subpath files and  insert to mongdb
+            args:
+                filepaths ~ filepath of pathway subpath files
+
+        h. pathway_interaction(self,filepaths)
+            description:parser pathway interaction files and  insert to mongdb
+            args:
+                filepaths ~ filepath of pathway interaction files
+
+        i. pathway_entry(self,filepaths)
+            description:parser pathway entry files and  insert to mongdb
+            args:
+                filepaths ~ filepath of pathway entry files
+
+        j. pathway_event(self,filepaths)
+            description:parser pathway event files and  insert to mongdb
+            args:
+                filepaths ~ filepath of pathway event files
+
+        k. pathway_supplement(self,filepaths,all_paths,all_nodes,all_events)
+            description:supplement the path info ,entry,events  with subpathway infos in *.graph.json
+            args:
+                filepaths ~ all files with name-tail  *.graph.json 
+                all_paths ~ all_paths info in reactm.pathway.info
+                all_nodes ~ all_nodes info in reactm.pathway.entry
+                all_events ~ all_events info in reactm.pathway.event
+
+(2) dbMap
+
+    description: map reactom pathway id to other db
+
+    functions:
+
+        a. dbID2hgncSymbol(self)
+            description:create a mapping relation between REACTOM PATH ID with HGNC Symbol
+            args:
+
+                   
+(3) dbFilter
+
+    description:  filter part field of data in collections  in mongodb
+
+    functions:
+
+        a. pathway_topic(self)
+            description: filter parts of filed of specified doc for pathway topic creation 
+            args:          
+
+Design  
+
+(1) downloadData
+  
+    1. get all urls of raw files
+    2. download all files(.graph.json , path json, txt, txt.zip)
+    3. generate .log file in current  path
+    4. generate .files file in database
+
+(2) extractData
+    
+    1. distribute filepaths for parser
+    2. parser filepaths step by step
+    3. backup all collections
+        
+(3) updateData
+    
+    1. load the log file
+    2. get the latest updated version from remote site
+    3. compare with current local version in log file
+    4. if remote updated, download from ftp site and store raw data into /dataraw/,then create a log,else End
+
+(4) parser
+    
+    1. connect mongodb
+    2. before create a col ,delete the col with the same name or the old edition
+    3. create a col ,and create a index in col with the main identifier of this db model
+    4. add a version doc in col head
+    5. parser file content and insert data one by one
+
+(5) dbMap
+    
+    dbID2hgncSymbol
+        1. connect mongodb
+        2. get the map relation of entrez_id with hgnc_symbol
+        3. map reactom pathway id to hgnc symbol
+
+(6) dbFilter
+
+
+Usage: python reactom_pathway.py  [OPTION]...[NAME]...
+
+Download,extract,standar,insert and update data automatically
+
+-h, --help                         :give this help
+-a, --all                             :excute download,extract,standar and insert
+-u, --update                     :update database
+-f, --field  [filedname]      :select data from mongodb      
+
+++++++ reactom_pathway  Documentation ++++++
+

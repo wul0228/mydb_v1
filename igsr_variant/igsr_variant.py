@@ -4,7 +4,7 @@
 # author:wuling
 # emai:ling.wu@myhealthgene.com
 
-#this model set  to xxxxxx
+#this model set  to download ,parser(extract,satndar,insert) and update clinvar variant data from igsr ftp site
 
 import sys
 sys.path.append('../')
@@ -29,7 +29,6 @@ def downloadData(redownload = False):
     args:
     redownload-- default False, check to see if exists an old edition before download
                        -- if set to true, download directly with no check
-    rawdir-- the directory to save download file
     '''
     if  not redownload:
 
@@ -40,7 +39,9 @@ def downloadData(redownload = False):
 
     if redownload or not existgoFile or  choice == 'y':
 
-        process = igsr_parser(today)
+        #----------------------------------------------------------------------------------------------------------
+        # 1. download ALL.wgs.phase**.vcf
+        process = parser(today)
 
         (mt,host,logdir) = process.getUrl()
 
@@ -48,71 +49,61 @@ def downloadData(redownload = False):
 
         igsr_variant_ftp_infos['logdir'] = logdir
 
-        ftp = connectFTP(**igsr_variant_ftp_infos)
+        print 'the latest version is :',mt
+        print 'the host  is :',host
+        print 'the logdir  is :',logdir
 
-        files = ftp.nlst()
+        filepath = process.getOne(igsr_variant_ftp_infos,igsr_variant_raw)
 
-        filenames = [name for name in files if name.startswith('ALL.wgs') and name.endswith('sites.vcf.gz')]
+    #--------------------------------------------------------------------------------------------------------------------
+    #  generate .log file in current  path
+    if not os.path.exists(log_path):
 
-        if filenames:
-            filename = filenames[0]
-        else:
-            print 'no this file'
-            return
+        with open(log_path,'w') as wf:
 
-        savefilename = '{}_{}_{}.vcf.gz'.format(filename.rsplit('.vcf',1)[0].strip(),mt,today)
+            json.dump({'igsr_variant':[(mt,today,model_name)]},wf,indent=8)
 
-        ftpurl = host + logdir + filename
+    print  'datadowload completed !'
+    #--------------------------------------------------------------------------------------------------------------------
+    # return filepaths to extract 
 
-        print ftpurl
-    #     # remoteabsfilepath = pjoin(igsr_variant_ftp_infos['logdir'],'{}'.format(filename))
-
-    #     # getfile = 'wget {} --ftp-user= --ftp-password=password'
-    #     getfile = 'wget  -O {} {}  '.format(savefilepath,ftpurl)
-
-    #     # save_file_path = ftpDownload(ftp,filename,savefilename,igsr_variant_raw,remoteabsfilepath)
-
-    #     # gunzip file
-    #     gunzip = 'gunzip {}'.format(save_file_path)
-
-    #     os.popen(gunzip)
-
-    # # create log file
-    # if not os.path.exists(log_path):
-
-    #     with open(log_path,'w') as wf:
-
-    #         json.dump({'igsr_variant':[(mt,today,model_name)]},wf,indent=8)
-
-    # print  'datadowload completed !'
-
-    # filepath = save_file_path.split('.gz')[0].strip()
-
-    # return (filepath,today)
+    return (filepath,today)
 
 def extractData(filepath,date):
-
+    '''
+    this function is set to distribute all filepath to parser to process
+    args:
+    filepath -- the file to be parserd
+    date -- the date of  data download
+    '''
+    # ----------------------------------------------------------------------------------------------------
+    # 1. distribute filepaths for parser
+    #  just only one file
     filename = psplit(filepath)[1].strip()
 
     fileversion = filename.rsplit('_',1)[0].strip().rsplit('_',1)[1].strip()
+    # ----------------------------------------------------------------------------------------------------
+    # 2. parser filepaths step by step
+    process = parser(date)
 
-    process = igsr_parser(date)
+    process.variant_info(filepath,fileversion)
+    # ----------------------------------------------------------------------------------------------------
+    # 3. bkup all collections
+    colhead = 'igsr.variant'
 
-    process.vcf(filepath,fileversion)
+    bkup_allCols('mydb_v1',colhead,igsr_variant_db)
 
-    # colhead = 'igsr.variant'
+    print 'extract and insert completed'
 
-    # bkup_allCols('mydb_v1',colhead,igsr_variant_db)
+    return (filepath,date)
 
-    # print 'extract and insert completed'
-
-    # return (filepath,date)
-
-def updateData(insert=False,_mongodb='../_mongodb/'):
-
+def updateData(insert=False):
+    '''
+    this function is set to update all file in log
+    '''
     igsr_variant_log = json.load(open(log_path))
 
-    process = igsr_parser(today)
+    process = parser(today)
 
     (mt,host,logdir) = process.getUrl()
 
@@ -130,23 +121,37 @@ def updateData(insert=False,_mongodb='../_mongodb/'):
             json.dump(igsr_variant_log,wf,indent=8)
 
         print  '{} \'s new edition is {} '.format('igsr_variant',mt)
-        
+
+        return 'update successfully'
+
     else:
 
         print  '{} {} is the latest !'.format('igsr_variant',mt)
 
-def selectData():
+        return 'new version is\'t detected'
 
-    #function introduction
-    #args:
-    
-    return
+def selectData(querykey = 'ID',value='rs100001'):
+    '''
+    this function is set to select data from mongodb
+    args:
+    querykey -- a specified field in database
+    queryvalue -- a specified value for a specified field in database
+    '''
+    conn = MongoClient('127.0.0.1', 27017 )
 
-class igsr_parser(object):
-    """docstring for igsr_parser"""
+    db = conn.get_database('mydb_v1')
+
+    colnamehead = 'igsr.variant'
+
+    dataFromDB(db,colnamehead,querykey,queryvalue=None)
+
+class parser(object):
+    '''
+    this class is set to parser all raw file to extract content we need and insert to mongodb
+    '''
     def __init__(self, date):
 
-        super(igsr_parser, self).__init__()
+        super(parser, self).__init__()
 
         conn = MongoClient('localhost',27017)
 
@@ -157,7 +162,9 @@ class igsr_parser(object):
         self.db = db
 
     def getUrl(self):
-
+        '''
+        this function is set to get the latest version and ftp host and ftp logdir of igsr variant
+        '''
         web = requests.get(igsr_download_web,headers=headers,verify=False)
 
         soup = bs(web.content,'lxml')
@@ -176,23 +183,75 @@ class igsr_parser(object):
 
         return (mt,host,logdir) 
 
-    def vcf(self,filepath,fileversion):
+    def getOne(self,igsr_variant_ftp_infos,igsr_variant_raw):
+        '''
+        this function is to download  one file under  a given remote dir 
+        args:
+        igsr_variant_ftp_infos --  a specified ftp connection info 
+        filename --  the name of file need download
+        rawdir -- the directory to save download file
+        '''       
+        ftp = connectFTP(**igsr_variant_ftp_infos)
 
+        files = ftp.nlst()
+
+        filenames = [name for name in files if name.startswith('ALL.wgs') and name.endswith('sites.vcf.gz')]
+
+        if filenames:
+            filename = filenames[0]
+            mt =  ftp.sendcmd('MDTM {}'.format(filename)).replace(' ','')
+
+        else:
+            print 'no this file'
+            return
+
+        print '...start download ',filename
+
+        savefilename = '{}_{}_{}.vcf.gz'.format(filename.rsplit('.vcf',1)[0].strip(),mt,today)
+        print '...savefilename ',savefilename
+
+        remoteabsfilepath = pjoin(igsr_variant_ftp_infos['logdir'],'{}'.format(filename))
+        print '...remoteabsfilepath ',remoteabsfilepath
+
+        savefilepath = pjoin(igsr_variant_raw,savefilename)
+        print '...savefilepath ',savefilepath
+        
+        try:
+             print 'try ftp download...'
+             ftpDownload(ftp,filename,savefilename,igsr_variant_raw,remoteabsfilepath)
+        except:
+            print 'try wget download...'
+            ftpurl = igsr_variant_ftp_infos['host'] + igsr_variant_ftp_infos['logdir'] + filename
+            getfile = 'wget  -O {} {}  '.format(savefilepath,ftpurl)
+
+        print '...end download '
+
+        # gunzip file
+        print '...start gunzip file '
+        gunzip = 'gunzip {}'.format(savefilepath)
+
+        os.popen(gunzip)
+        print '...end gunzip file '
+
+        savefilepath = savefilepath.rsplit('.',1)[0].strip()
+
+        return savefilepath
+
+    def variant_info(self,filepath,fileversion):
+        '''
+        this function is set parser variant_info 
+        '''
         colname = 'igsr.variant'
 
         delCol('mydb_v1',colname)
 
         col = self.db.get_collection(colname)
-        
-        col.insert({'dataVersion':fileversion,'dataDate':self.date,'colCreated':today,'file':'ALL.wgs.*.sites.vcf.gz'})
 
-        if filepath.endswith('gz'):
+        col.ensure_index([('ID',1),])
 
-            gunzip = 'gunzip {}'.format(filepath)
-            os.popen(gunzip)
+        col.insert({'dataVersion':fileversion,'dataDate':self.date,'colCreated':today,'file':'ALL.wgs.*.sites.vcf'})
 
-            print 'gunzip completed'
-
+        #-------------------------------------------------------------------------------------------------------------------------------------
         vcffile = open(filepath)
 
         n = 0
@@ -237,9 +296,9 @@ class igsr_parser(object):
             print 'igsr.variant line',n,len(after_dic)
 
 class dbMap(object):
-
-    #class introduction
-
+    '''
+    this class is set to map ncbi gene id to other db
+    '''
     def __init__(self):
 
         import commap
@@ -258,9 +317,9 @@ class dbMap(object):
 
     def dbID2hgncSymbol(self):
         '''
-        this function is to create a mapping relation between disgenet disease id  with HGNC Symbol
+        this function is to create a mapping relation between igsr  id  with HGNC Symbol
         '''
-        # because disgenet gene id  is entrez id 
+
         rsID2hgncSymbol = self.process.rsID2hgncSymbol()
 
         igsr_variant_col = self.db_cols.get('igsr.variant')
@@ -290,7 +349,7 @@ class dbMap(object):
                     output[symbol].append(rs_id)
 
             n += 1
-            print 'igsr.variant doc',n
+            # print 'igsr.variant doc',n
 
         # dedup val for every key
         for key,val in output.items():
@@ -303,16 +362,18 @@ class dbMap(object):
             rs = list(set(rs))
             output[sym] = rs
             
-        with open('./hgncSymbol2igsrvariantID.json','w') as wf:
-            json.dump(output,wf,indent=8)
+        # with open('./hgncSymbol2igsrvariantID.json','w') as wf:
+        #     json.dump(output,wf,indent=8)
 
         return (hgncSymbol2igsrvariantID,'ID')
 
-class filter(object):
-    """docstring for filter"""
-    def __init__(self):
+class dbFilter(object):
 
-        pass
+    '''this class is set to filter part field of data in collections  in mongodb '''
+
+    def __init__(self):
+        
+        super(dbFilter,self).__init__()
         
     def gene_topic(self,doc):
 
@@ -322,18 +383,14 @@ class filter(object):
 
 def main():
 
-    modelhelp = 'help document'
+    modelhelp = model_help.replace('&'*6,'IGSR_VARIANT').replace('#'*6,'igsr_variant')
 
-    funcs = (downloadData,extractData,updateData,selectData,dbMap,igsr_variant_store)
+    funcs = (downloadData,extractData,updateData,selectData,igsr_variant_store)
 
     getOpts(modelhelp,funcs=funcs)
         
 if __name__ == '__main__':
     main()
-    # downloadData(redownload=True)
-    # filepath = '/home/user/project/dbproject/mydb_v1/igsr_variant/dataraw/ALL.wgs.phase3_shapeit2_mvncall_integrated_v5b.20130502.sites_20130502_1801041729.vcf'
-    # date = '1801041729'
+    # filepath = '/home/user/project/dbproject/mydb_v1/igsr_variant/dataraw/ALL.wgs.phase3_shapeit2_mvncall_integrated_v5b.20130502.sites_21320150818133316_180124113638.vcf'
+    # date = '180124113638'
     # extractData(filepath,date)
-    # man = dbMap()
-    # man.dbID2hgncSymbol()
-  
