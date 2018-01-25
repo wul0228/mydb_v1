@@ -1,0 +1,34 @@
+#http://dgidb.org/api/v2/interactions.json
+
+{
+  "geneName": "FLT1",
+  "geneLongName": "fms related tyrosine kinase 1",
+  "entrezId": 2321,
+  "geneCategories": [
+	{
+	  "id": "4c14ec3171544bd2b18b2f1a45e6c8f2",
+	  "name": "KINASE"
+	},
+
+  ],
+
+  "interactionId": "2624d9dc-7cac-4781-baa0-cd2c61363880",
+  "interactionTypes": [
+	"inhibitor"
+  ],
+  "drugName": "CEDIRANIB",
+  "drug_link":"http://www.dgidb.org/drugs/CEDIRANIB", #增加字段
+  "drugChemblId": "CHEMBL491473",
+  "drugChemblId_link":"https://www.ebi.ac.uk/chembl/compound/inspect/CHEMBL491473" #增加字段
+  "sources": [
+	"ChEMBL",
+	"TdgClinicalTrial",
+	"TALC"
+  ],
+  "pubmed": [
+	  {
+		"pmids":27601554,
+		"pubmed_link":"http://www.ncbi.nlm.nih.gov/pubmed/27601554"  #增加
+	  },
+  ]
+}

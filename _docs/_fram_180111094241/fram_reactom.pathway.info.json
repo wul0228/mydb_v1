@@ -1,0 +1,12 @@
+{
+    "path_name": "pathway name indicated to stId", 
+    "path_sub": "The subpathway of this pathway.", 
+    "path_image": "The url of pathway image.", 
+    "path_id": "The unique identifier of pathway in Reactome.", 
+    "path_link": "", 
+    "path_summation": "The description of the pathway.",
+	"_db_description":"REACTOME is an open-source, open access, manually curated and peer-reviewed pathway database. Our goal is to provide intuitive bioinformatics tools for the visualization, interpretation and analysis of pathway knowledge to support basic and clinical research, genome analysis, modeling, systems biology and education. ",
+	"_subdb_description":"The pathway basic information.",
+	"_db_name":"Reactome",
+	"_subdb_name":"reactom.pathway.info"	
+}

@@ -17,7 +17,9 @@ current_path = psplit(os.path.abspath(__file__))[0]
 
 
 class geneMap(object):
+
     """docstring for geneMap"""
+
     def __init__(self):
 
         super(geneMap, self).__init__()
@@ -25,9 +27,11 @@ class geneMap(object):
     def hgncSymbol2allDB(self):
 
         '''
-        this function is set to map all db ids to hgncSymbol
+        this function is set to map all db ids to hgncSymbol with dbID2hgncSymbol under every sub model
         '''
-        hgncSymbol2allDBIDs = dict()
+        output = dict()
+
+        hgncSymbol2allDBIDs = output
 
         for model in include_model:
             
@@ -40,66 +44,74 @@ class geneMap(object):
 
             for symbol,dbIDs in hgncSymbl2dbID.items():
 
-                if symbol not in hgncSymbol2allDBIDs:
+                if symbol not in output:
 
-                    hgncSymbol2allDBIDs[symbol] = dict()
+                    output[symbol] = dict()
 
-                if model not in hgncSymbol2allDBIDs[symbol]:
+                if model not in output[symbol]:
 
-                    hgncSymbol2allDBIDs[symbol][model] = dict()
+                    output[symbol][model] = dict()
 
-                hgncSymbol2allDBIDs[symbol][model]['dbKey'] = db_key
+                output[symbol][model]['dbKey'] = db_key
 
-                hgncSymbol2allDBIDs[symbol][model]['dbIDs'] = dbIDs
+                output[symbol][model]['dbIDs'] = dbIDs
 
-        print 'len(hgncSymbol2allDBIDs)',len(hgncSymbol2allDBIDs)
+        print 'len(hgncSymbol2allDBIDs)',len(output)
 
         with open('./hgncSymbol2allDBIDs.json','w') as wf:
 
-            json.dump(hgncSymbol2allDBIDs,wf,indent=8)
+            json.dump(output,wf,indent=8)
 
         return hgncSymbol2allDBIDs
 
 class geneFilter(object):
-    """docstring for ClassName"""
-    def __init__(self):
+
+    """'this class is set to filter fileds from sub model  to  satisfiy  the build of gene topic """
+    def __init__(self,db_name,topic_dbname,topic_name):
 
         super(geneFilter, self).__init__()
 
         conn = MongoClient('localhost',27017)
 
-        mydb = conn.get_database('mydb_v1')
+        mydb = conn.get_database(db_name)
 
-        mytopic = conn.get_database('mytopic_v1')
+        mytopic = conn.get_database(topic_dbname)
 
+        # get all col_names in mydb_v1
         col_names = mydb.collection_names()
 
+        #  store col_name and it's  version
+        db_version = dict()
+        #  store col_name and it's  col api
         db_cols = dict()
 
         for col_name in col_names:
 
             col = mydb.get_collection(col_name)
-
             db_cols[col_name] = col
 
-            # create index
-            query = col_query.get(col_name)
+            col_version = col.find_one()
+            col_version.pop('_id')
+            db_version[col_name.replace('.','*')] = col_version
 
+            # create index for every included model,
+            query = col_query.get(col_name)
             if query:
                 index = dict.fromkeys(query.keys(),1)
-
-                print index
-
                 col.ensure_index(index.items())
 
         self.db_cols = db_cols
-
+        self.db_version = db_version
         self.mydb = mydb
-
         self.mytopic = mytopic
+        self.topic_dbname = topic_dbname
+        self.topic_name = topic_name
 
     def filterKeys(self,dic,savekeys):
 
+        '''
+        this function is set to filter field of  a document in in col  according customize savekeys
+        '''
         filter_dic = dict()
 
         for key in savekeys:
@@ -109,6 +121,7 @@ class geneFilter(object):
             if not val and val != False:
                 val = ''
 
+            # replace ' ' with & , * with . in key 
             key = key.replace('&',' ').replace('*','.')
 
             filter_dic[key] = val
@@ -117,32 +130,46 @@ class geneFilter(object):
 
     def filterFiledAllDB(self):
 
-        gene_col = self.mytopic.get_collection('gene')
-        gene_col.drop()
-        gene_col = self.mytopic.get_collection('gene')
+        '''
+        this function is set to filter filed  of all docs in diferent col in turn
+        '''
+        # create a col to store filted doc 
+        gene_col = self.mytopic.get_collection(self.topic_name)
 
-        hgncSymbol2allDBIDs = json.load(open('/home/user/project/dbproject/mydb_v1/_topic/gene/hgncSymbol2allDBIDs.json'))
+        # beforea create ,del old version
+        gene_col.drop()
+        gene_col = self.mytopic.get_collection(self.topic_name)
+
+        # insert  all cols version as the gene topic db version
+        gene_col.insert(self.db_version)
+
+        # get the relation symbol with all dbs
+        process = geneMap()
+        hgncSymbol2allDBIDs = process.hgncSymbol2allDB()
+        # hgncSymbol2allDBIDs = json.load(open('/home/user/project/dbproject/mydb_v1/_topic/gene/_dbID2hgncSymbol/hgncSymbol2allDBIDs.json'))
         
         hgnc_col =  self.db_cols.get('hgnc.gene')
 
         n = 0
-
         for sym,sym_it  in hgncSymbol2allDBIDs.items():
-        # sym = 'AAAS'
-        # sym_it = hgncSymbol2allDBIDs[sym]
-
-            output = dict()
-            output['symbol'] = sym
 
             n += 1
             print n,'gene topic  sym',sym
 
+            # create a dict to store a symbol's content
+            output = dict()
+            #--------------------------------------------store symbol --------------------------------------------------------------------------------
+            output['symbol'] = sym
+
+            #---------------------------------------------store other db id of symbol--------------------------------------------------------------
             sym_otherID = hgnc_col.find_one({'symbol':sym})
             sym_otherID.pop('_id')
             output['symbol_ids'] = sym_otherID
 
+            #---------------------------------------------extract content of symbol in col and subcols--------------------------------------------------------------
             for db,db_it in sym_it.items():
 
+                # store according to dbname.dbid.colname like{symbol:TP53,ncbi_gene:{gene_id1:{ncbi*gene*info:[],ncbi*gene*pubmed:[]......},gene_id2:{}}}
                 output[db] = dict()
                 dbkey = db_it.get('dbKey')
                 dbids =  db_it.get('dbIDs')
@@ -151,12 +178,13 @@ class geneFilter(object):
 
                     output[db][dbid] = dict()
 
+                    # get all sub col of a db like go:[go.info,go.geneanno]
                     col_names =  model_cols.get(db)
 
                     for colname  in col_names:
 
+                        # because mongodb can't save a key thant string have .
                         dbcol = colname.replace('.','*')
-
                         output[db][dbid][dbcol] = list()
 
                         col = self.db_cols.get(colname)
@@ -165,6 +193,7 @@ class geneFilter(object):
                         query = copy.deepcopy(col_query.get(colname))
                         savekeys = copy.deepcopy(col_savekeys.get(colname))
 
+                        # create a query dict , because some sub col must select  the main key with GenID
                         query[dbkey] = dbid
 
                         if len(query) >= 2:
@@ -182,40 +211,48 @@ class geneFilter(object):
                      
                             output[db][dbid][dbcol].append(doc)
 
-            # with open('AAAS.json','w') as wf:
-            #     json.dump(output,wf,indent=8)
             gene_col.insert(output)
 
             del output
 
+        return (self.topic_dbname,self.topic_name)
+
 class geneFormat(object):
-    """docstring for ClassName"""
-    def __init__(self):
+
+    """this class is set to standard symbol content after  geneFilter,to generate an output formated file """
+
+    def __init__(self,db_name,topic_dbname,topic_name):
 
         super(geneFormat, self).__init__()
 
         conn = MongoClient('localhost',27017)
 
-        mytopic = conn.get_database('mytopic_v1')
+        mytopic = conn.get_database(topic_dbname)
 
-        mydb,db_cols = initDB('mydb_v1')
+        mydb,db_cols = initDB(db_name)
 
         self.mytopic = mytopic
 
         self.db_cols = db_cols
 
+        self.topic_name = topic_name
+
     def format(self,step=1):
 
-        format_dir = os.path.join('./','_format{}'.format(step))
-        # format_dir = os.path.join('./','_format')
+        format_col = self.mytopic.get_collection('{}.format'.format(self.topic_name))
+        format_col.drop()
+        format_col = self.mytopic.get_collection('{}.format'.format(self.topic_name))
 
-        if not os.path.exists(format_dir):
+        # format_dir = os.path.join('./','_{}_format_step{}'.format(self.topic_name,step))
 
-            os.mkdir(format_dir)
+        # if not os.path.exists(format_dir):
 
-        gene_col = self.mytopic.get_collection('gene')
+        #     os.mkdir(format_dir)
+
+        gene_col = self.mytopic.get_collection(self.topic_name)
 
         process = {
+        'hgnc_gene':self.hgnc_gene,
         'ncbi_gene':self.ncbi_gene,
         'proteinAtlas':self.proteinAtlas,
         'go_gene':self.go_gene,
@@ -227,6 +264,7 @@ class geneFormat(object):
         'dgidb_drug':self.dgidb_drug,
         'clinvar_variant':self.clinvar_variant,
         'igsr_variant':self.igsr_variant,
+        'hpo_phenotype':self.hpo_phenotype
         }
 
         docs = gene_col.find({})
@@ -235,14 +273,21 @@ class geneFormat(object):
 
         for doc in docs:
 
+            doc.pop('_id')
+
+            if n ==  0:
+                format_col.insert(doc) # insert col version 
+                n += 1
+                continue
+
             output = dict()
 
             n += 1
-
-            doc.pop('_id')
-
             symbol = doc.get('symbol')
             symbol_ids = doc.get('symbol_ids')
+
+            output['symbol'] = symbol
+            output['symbol_ids'] = symbol_ids
 
             print '+'*50
             print n,symbol
@@ -262,10 +307,11 @@ class geneFormat(object):
                 output = self.format_kegg_step(symbol_ids,output,step)
                 output = self.format_wiki_step(symbol_ids,output,step)
 
-            savepath = os.path.join(format_dir,'{}_{}.json'.format(symbol,step))
+            # savepath = os.path.join(format_dir,'{}.json'.format(symbol))
+            # with open(savepath,'w') as wf:
+            #     json.dump(output,wf,indent=8)
 
-            with open(savepath,'w') as wf:
-                json.dump(output,wf,indent=8)
+            format_col.insert(output)
 
     def format_kegg_step(self,symbol_ids,output,step):
 
@@ -283,7 +329,6 @@ class geneFormat(object):
             if not kegg_relation:
 
                 new_kegg_path.append(kegg_path)
-
                 continue
 
             path_id = kegg_path.get('path_id')
@@ -295,6 +340,8 @@ class geneFormat(object):
             infront_relations = list()
 
             for s in range(step+1)[1:]: # step =3 [1,2,3]
+
+                stepnumber = 'step{}'.format(s)
 
                 if s == 1:
 
@@ -338,16 +385,16 @@ class geneFormat(object):
 
                     if save:
                         if s not in relations:
-                            relations[s] = list()
+                            relations[stepnumber] = list()
 
-                        if relation not in relations[s]:
+                        if relation not in relations[stepnumber]:
 
                             if s ==1 :
-                                relations[s].append(relation)
+                                relations[stepnumber].append(relation)
                                 infront_relations.append(relation)
                             else:
                                 if  relation not in infront_relations:
-                                    relations[s].append(relation)
+                                    relations[stepnumber].append(relation)
                                     infront_relations.append(relation)
 
                 gene_ids = list(set(next_gene_ids) - set(infront_geneids))
@@ -393,6 +440,8 @@ class geneFormat(object):
             infront_interactions = list()
 
             for s in range(step+1)[1:]: # step =3 [1,2,3]
+
+                stepnumber = 'step{}'.format(s)
 
                 if s==1:
                     group_infos  = list()
@@ -467,16 +516,16 @@ class geneFormat(object):
 
                     if save:
                         if s not in interactions:
-                            interactions[s] = list()
+                            interactions[stepnumber] = list()
 
-                        if interaction not in interactions[s]:
+                        if interaction not in interactions[stepnumber]:
 
                             if s ==1 :
-                                interactions[s].append(interaction)
+                                interactions[stepnumber].append(interaction)
                                 infront_interactions.append(interaction)
                             else:
                                 if  interaction not in infront_interactions:
-                                    interactions[s].append(interaction)
+                                    interactions[stepnumber].append(interaction)
                                     infront_interactions.append(interaction)
 
                 group_infos = [ i for i in next_group_infos if i not in infront_groupinfo]
@@ -507,98 +556,110 @@ class geneFormat(object):
 
         return output        
 
+    def hgnc_gene(self,symbol,symbol_ids,model_info,output):
+
+        '''
+        this function is set to format hgnc_gene in basicinfo {symbol:TP53,basicinfo:{HGNC:{}}}
+        '''
+        for hgnc_id,dbcolinfos in model_info.items():
+
+            infos = dbcolinfos.get('hgnc*gene')
+
+            basicinfo = infos[0] # a symble just  to a hgnc_id
+
+            if 'basicinfo' not in output:
+
+                output['basicinfo'] = dict()
+
+            output['basicinfo']['HGNC'] = basicinfo
+
+        return output
+
     def ncbi_gene(self,symbol,symbol_ids,model_info,output):
-
-        # if len(model_info) != 1:
-
-        #     print 'a symbol have 2 or more entrez id !!!!!!!!!'
-
+        '''
+        this function is set to format ncbi_gene in basicinfo {symbol:TP53,basicinfo:{NCBI:{}}}
+        '''
+        #-------------------------------------------basicinfo NCBI---------------------------------------------------------------------------
         for gene_id,dbcolinfos in model_info.items():
 
-            for dbcol,infos in dbcolinfos.items():
+            ncbi_gene_info = dbcolinfos.get('ncbi*gene*info')
 
-                colname = dbcol.replace('*','.')
+            basicinfo = ncbi_gene_info[0] # a symbol only have one entrez id
 
-                if colname =='ncbi.gene.info':
+            if basicinfo :
 
-                    basicinfo = infos[0] # a symbol only have one entrez id
+                if 'basicinfo' not in output:
 
-                    if basicinfo :
+                    output['basicinfo'] = dict()
 
-                        if 'basicinfo' not in output:
+                output['basicinfo']['NCBI'] = basicinfo
 
-                            output['basicinfo'] = dict()
+            #-------------------------------------------expression NCBI---------------------------------------------------------------------------
+            ncbi_gene_expression = dbcolinfos.get('ncbi*gene*expression')
 
-                        output['basicinfo']['NCBI'] = basicinfo
+            expression = dict()
 
-                elif colname == 'ncbi.gene.expression':
+            for i in ncbi_gene_expression:
 
-                    expression = dict()
+                project_desc = i.get('project_desc')
 
-                    for i in infos:
+                source_name = i.get('source_name')
 
-                        project_desc = i.get('project_desc')
+                exp_rpkm = i.get('exp_rpkm')
 
-                        source_name = i.get('source_name')
+                if project_desc not in expression:
+                    expression[project_desc] = dict()
 
-                        exp_rpkm = i.get('exp_rpkm')
+                if source_name not in expression[project_desc]:
+                    expression[project_desc][source_name] = list()
 
-                        if project_desc not in expression:
-                            expression[project_desc] = dict()
+                expression[project_desc][source_name].append(exp_rpkm)
 
-                        if source_name not in expression[project_desc]:
-                            expression[project_desc][source_name] = list()
+            # get the mean of exp_rpkm of source_name in a project
+            for project_desc,it in expression.items():
 
-                        expression[project_desc][source_name].append(exp_rpkm)
+                for source_name,exp_rpkms in it.items():
 
-                    for project_desc,it in expression.items():
+                    exp_rpkms_sum = sum([float(i) for i in exp_rpkms])
 
-                        for source_name,exp_rpkms in it.items():
+                    exp_rpkm_mean = round(float(exp_rpkms_sum)/len(exp_rpkms),2)
 
-                            # exp_rpkms_sum = reduce(lambda x,y:float(x) + float(y),exp_rpkms)
-                            exp_rpkms_sum = sum([float(i) for i in exp_rpkms])
+                    expression[project_desc][source_name] = exp_rpkm_mean
 
-                            exp_rpkm_mean = round(float(exp_rpkms_sum)/len(exp_rpkms),2)
+            if expression :
 
-                            expression[project_desc][source_name] = exp_rpkm_mean
+                if  'expression' not in output:
+                
+                    output['expression'] = dict()
 
-                    if expression :
-
-                        if  'expression' not in output:
-                        
-                            output['expression'] = dict()
-
-                        output['expression']['NCBI'] = expression
+                output['expression']['NCBI'] = expression
 
         return output
 
     def proteinAtlas(self,symbol,symbol_ids,model_info,output):
-
-        # if len(model_info) != 1:
-
-        #     print 'a symbol have 2 or more ensembl id !!!!!!!!!1'
-
+        '''
+        this function is set to format proteinAtlas in basicinfo {symbol:TP53,basicinfo:{PROTEINATLAS:{}}}
+        '''
         for gene_id,dbcolinfos in model_info.items():
 
-            for dbcol,infos in dbcolinfos.items():
+            prot_geneanno = dbcolinfos.get('proteinatlas*geneanno')
 
-                colname = dbcol.replace('*','.')
+            basicinfo = prot_geneanno[0] #  a symbol just have one ensembl id in proteinAtlas
 
-                if colname =='proteinatlas.geneanno':
+        if basicinfo:
 
-                    basicinfo = infos[0]
-                    if basicinfo:
+            if 'basicinfo' not in output:
 
-                        if 'basicinfo' not in output:
+                output['basicinfo'] = dict()
 
-                            output['basicinfo'] = dict()
-
-                        output['basicinfo']['PROTEINATLAS'] = basicinfo
+            output['basicinfo']['PROTEINATLAS'] = basicinfo
 
         return output
 
     def go_gene(self,symbol,symbol_ids,model_info,output):
-
+        '''
+        this function is set to format go_gene in function {symbol:TP53,function:{GoOntology:{}}}
+        '''
         function = dict()
 
         for go_id,dbinfos in model_info.items():
@@ -656,7 +717,9 @@ class geneFormat(object):
         return output
 
     def kegg_pathway(self,symbol,symbol_ids,model_info,output):
-
+        '''
+        this function is set to format kegg_pathway in pathway {symbol:TP53,pathway:{KEGG:{}}}
+        '''
         paths = list()
 
         for path_id,dbinfos in model_info.items():
@@ -671,14 +734,10 @@ class geneFormat(object):
             # add path gene info
             path_gene = dbinfos.get('kegg*pathway*gene')[0] #only have one
 
-            # gene_id = str(path_gene['gene_id'])
-
             path.update(path_gene)
             #-----------------------------------------------------------------------------------------------------------------
             # add path relation info
-            path_relation = dbinfos.get('kegg*pathway*relation')
-
-            path['relation'] = path_relation
+            path['relation'] = dbinfos.get('kegg*pathway*relation')
 
             paths.append(path)
 
@@ -691,7 +750,9 @@ class geneFormat(object):
         return output
 
     def reactom_pathway(self,symbol,symbol_ids,model_info,output):
-
+        '''
+        this function is set to format reactom_pathway in pathway {symbol:TP53,pathway:{REACTOM:{}}}
+        '''
         paths = list()
 
         for path_id,dbinfos in model_info.items():
@@ -706,15 +767,12 @@ class geneFormat(object):
             # add path gene info
             path_gene = dbinfos.get('reactom*pathway*gene')[0] #only have one
             
-            gene_id = str(path_gene['entrez_id'])
-
             path.update(path_gene)
             #-----------------------------------------------------------------------------------------------------------------
             # add path event info
             path_event = dbinfos.get('reactom*pathway*event')
 
             # find symbol's dbId in reactom entry
-
             reactom_entry_col = self.db_cols.get('reactom.pathway.entry')
 
             docs = reactom_entry_col.find({'entry_name':symbol})
@@ -759,7 +817,9 @@ class geneFormat(object):
         return output
 
     def wiki_pathway(self,symbol,symbol_ids,model_info,output):
-
+        '''
+        this function is set to format wiki_pathway in pathway {symbol:TP53,pathway:{WIKI:{}}}
+        '''
         paths = list()
 
         for path_id,dbinfos in model_info.items():
@@ -773,15 +833,11 @@ class geneFormat(object):
             #-----------------------------------------------------------------------------------------------------------------
             # add path gene info
             path_gene = dbinfos.get('wiki*pathway*gene')[0] #only have one
-            
-            gene_id = str(path_gene['entrez_id'])
 
             path.update(path_gene)
             #-----------------------------------------------------------------------------------------------------------------
             # add path interaction
-            path_interaction = dbinfos.get('wiki*pathway*interaction')
-
-            path['interaction'] = path_interaction
+            path['interaction'] = dbinfos.get('wiki*pathway*interaction')
 
             paths.append(path)
 
@@ -795,24 +851,30 @@ class geneFormat(object):
 
     def disgenet_disease(self,symbol,symbol_ids,model_info,output):
 
-        disease = list()
+        '''
+        this function is set to format disgenet_disease in disease {symbol:TP53,disease:{DISGENET:[]}}
+        '''
+        diseases = list()
 
         for diseaseId,dbcolinfos in model_info.items():
 
-            disgenet = dbcolinfos.get('disgenet*disgene*curated') # only have one  for a geneid
+            disgenet = dbcolinfos.get('disgenet*disgene*curated') # only have one  for a geneid  with a diseaseId
 
-            disease.append(disgenet[0])
+            diseases.append(disgenet[0])
 
         if 'disease' not in output:
 
             output['disease'] = dict()
 
-        output['disease']['DisGeNET'] = disease
+        output['disease']['DisGeNET'] = diseases
 
         return output
 
     def cosmic_disease(self,symbol,symbol_ids,model_info,output):
 
+        '''
+        this function is set to format cosmic_disease in disease {symbol:TP53,CGC:{COSMIC:[]}}
+        '''
         disease = list()
 
         for geneid,dbcolinfos in model_info.items():
@@ -831,6 +893,9 @@ class geneFormat(object):
 
     def dgidb_drug(self,symbol,symbol_ids,model_info,output):
 
+        '''
+        this function is set to format dgidb_drug in drug {symbol:TP53,drug:{DGIDB:[]}}
+        '''
         drug = list()
 
         for drug_id,dbcolinfos in model_info.items():
@@ -867,25 +932,30 @@ class geneFormat(object):
 
     def miRTarBase(self,symbol,symbol_ids,model_info,output):
 
-        regulation = list()
+        '''
+        this function is set to format miRTarBase in regulation {symbol:TP53,regulation:{miRTarBase:[]}}
+        '''
+        regulations = list()
 
         for mirid,dbcolinfos in model_info.items():
 
             mirtarbase = dbcolinfos.get('mirtarbase*mirgene') # only have one  for a mirid
 
-            regulation.append(mirtarbase[0])
+            regulations.append(mirtarbase[0])
 
         if 'regulation' not in output:
 
             output['regulation'] = dict()
 
-        output['regulation']['MIRTARBASE'] = regulation
+        output['regulation']['MIRTARBASE'] = regulations
 
         return output
 
     def clinvar_variant(self,symbol,symbol_ids,model_info,output):
-
-        variant = list()
+        '''
+        this function is set to format clinvar_variant in variant {symbol:TP53,variant:{CLINVAR:[]}}
+        '''
+        variants = list()
 
         for alleid,dbcolinfos in model_info.items():
 
@@ -895,139 +965,115 @@ class geneFormat(object):
 
                     i['AlleleID'] = alleid
 
-                    if i not in variant:
+                    if i not in variants:
 
-                        variant.append(i)
+                        variants.append(i)
 
         if 'variant' not in output:
 
             output['variant'] = dict()
 
-        output['variant']['CLINVAR'] = variant
+        output['variant']['CLINVAR'] = variants
 
         return output
 
     def igsr_variant(self,symbol,symbol_ids,model_info,output):
 
-        variant = list()
+        '''
+        this function is set to format igsr_variant in variant {symbol:TP53,variant:{1000_GENEMOES:[]}}
+        '''
+        variants = list()
 
         for rs_id,dbcolinfos in model_info.items():
 
                 igsr_varia  = dbcolinfos.get('igsr*variant')
 
-                variant.append(igsr_varia[0])
+                variants.append(igsr_varia[0])
 
         if 'variant' not in output:
 
             output['variant'] = dict()
 
-        output['variant']['IGSR_1000GENOMES'] = variant
+        output['variant']['IGSR_1000GENOMES'] = variants
 
         return output
 
-def main():
+    def hpo_phenotype(self,symbol,symbol_ids,model_info,output):
+        
+        '''
+        this function is set to format hpo_phenotype in phenotype {symbol:TP53,phenotype:{HPO:[]}}
+        '''
+        phenotypes = list()
 
-    # man = geneMap()
-    # man.hgncSymbol2allDB()
+        for hpo_id,dbcolinfos in model_info.items():
 
-    # man = geneFilter()
-    # man.filterFiledAllDB()
+            hpo_info = dbcolinfos.get('hpo*phenotype*info') # a hpo_id 2 a hpo_info record
 
-    man = geneFormat()
-    man.format()
+            hpo_gene = dbcolinfos.get('hpo*phenotype*gene') # a hpo_id and a gene_id 2a hpo_gene record
+
+            hpo_info[0].update(hpo_gene[0])
+
+            if hpo_info not in phenotypes:
+
+                phenotypes.append(hpo_info)
+
+        if 'phenotype' not in output:
+
+            output['phenotype'] = dict()
+
+        output['phenotype']['HPO'] = phenotypes
+
+        return output
+
+def main(test=False):
+
+    if test:
+        # man = geneMap()
+        # man.hgncSymbol2allDB()
+
+        # man = geneFilter('mydb_v1','mytopic_v1','gene_test')
+        # man.filterFiledAllDB()
+
+        man = geneFormat('mydb_v1','mytopic_v1','gene')
+        man.format()
 
 if __name__ == '__main__':
-    main()
-    pass
+
+    main(test=False)
     
-    # hgncSymbol2allDBIDs = json.load(open('/home/user/project/dbproject/mydb_v1/_topic/gene/hgncSymbol2allDBIDs.json'))
-    # hgncSymbol2igsrvariantID=  json.load(open('/home/user/project/dbproject/mydb_v1/_topic/gene/hgncSymbol2igsrvariantID.json'))
-    # print 'len(hgncSymbol2allDBIDs)',len(hgncSymbol2allDBIDs)
-    # print 'len(hgncSymbol2igsrvariantID)',len(hgncSymbol2igsrvariantID)
+    # conn = MongoClient('localhost',27017)
 
-    # for sym,ids in hgncSymbol2igsrvariantID.items():
+    # # db = conn.get_database('mydb_v1')
+    # db = conn.get_database('mytopic_v1')
 
-    #     if sym not in hgncSymbol2allDBIDs:
-    #         hgncSymbol2allDBIDs[sym] = dict()
-    #     hgncSymbol2allDBIDs[sym]['igsr_variant'] = dict()
-    #     hgncSymbol2allDBIDs[sym]['igsr_variant']['dbKey'] = 'ID'
-    #     hgncSymbol2allDBIDs[sym]['igsr_variant']['dbIDs'] = ids
+    # col = db.get_collection('gene')
+    # # col = db.get_collection('reactom.pathway.graph')
 
-    # print len(hgncSymbol2allDBIDs)
-    # with open('/home/user/project/dbproject/mydb_v1/_topic/gene/hgncSymbol2allDBIDs.json','w') as wf:
-    #     json.dump(hgncSymbol2allDBIDs,wf,indent=8)
+    # docs = col.find({})
 
-    #----------------------------------------------------------------------------------------------------------------------------------
-    # rawdir = '/home/user/project/dbproject/mydb_v1/_topic/gene/_format/'
-    # fllepaths = [os.path.join(rawdir,filename) for filename in os.listdir(rawdir)]
+    # f = open('./_mongodb/gene.tsv','w')
+    # # f = open('./_mongodb/reactom.pathway.graph.json.tsv','w')
 
-    # for fillepath in fllepaths:
-
-    #     f = json.load(open(fillepath))
-
-    #     variant = f.get('clinvar_variant')
-
-    #     symbol = f.get('symbol')
-    #     if variant:
-
-    #         for alleid,dbinfos in variant.items():
-
-    #             infos = dbinfos.get('clinvar*variant')
-
-    #             if len(infos) != 2:
-    #                 print alleid,symbol
-    #----------------------------------------------------------------------------------------------------------------------------------
-    # db,db_cols = initDB('mydb_v1')
-
-    # wiki_inter_col = db_cols.get('wiki.pathway.interaction')
-
-    # docs = wiki_inter_col.find({})
-
-    # xref_keys = list()
-
-    # gene_xref_keys = list()
+    # n = 0
 
     # for doc in docs:
+        
+    #     doc.pop('_id')
+    #     # doc = json.dumps(doc)
+    #     # f.write(doc+ '\n')
 
-    #     group1_info = doc.get('group1_info')
+    #     if n == 0:
+    #         doc = json.dumps(doc)
+    #         f.write('version' + '\t' +doc + '\n' )
+    #     else:
+    #         symbol = doc.pop('symbol')
+    #         doc.pop('symbol_ids')
+    #         doc = json.dumps(doc)
+    #         f.write(symbol + '\t' +doc + '\n' )
 
-    #     group2_info = doc.get('group2_info')
+    #     n += 1
+    #     print 'gene to tsv file,doc ',n
+    #     # print 'gene.format to tsv file,doc ',n
+    #     # print 'reactom.pathway.graph,doc ',n
 
-    #     if group1_info and group2_info:
-
-    #         for info in [group1_info,group2_info]:
-
-    #             if all([isinstance(i,dict) for i in info]):
-
-    #                 for i in info:
-
-    #                     xrefkey = i.get('xref',{}).keys()
-
-    #                     xref_keys += xrefkey
-
-    #                     if i.get('type') == 'GeneProduct':
-                            
-    #                         gene_xref_keys += xrefkey
-
-    #             elif all([isinstance(i,list) for i in info]):
-
-    #                 for j in info: # i is a group list
-
-    #                     for i in j:
-
-    #                         xrefkey = i.get('xref',{}).keys()
-
-    #                         xref_keys += xrefkey
-
-    #                         if i.get('type') == 'GeneProduct':
-                            
-    #                             gene_xref_keys += xrefkey
-
-    # xref_keys = list(set(xref_keys))
-    # gene_xref_keys = list(set(gene_xref_keys))
-
-    # print xref_keys
-    # print len(xref_keys)
-
-    # print gene_xref_keys
-    # print len(gene_xref_keys)
+    #     f.flush()

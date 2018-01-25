@@ -1,0 +1,12 @@
+#http://compbio.charite.de/jenkins/job/hpo.annotations/
+
+{
+	"database":"OMIM", #/work1/xuelab/project/liff/Data/HumanPhenotypeOntology/2017-09-18/rawdata/annotation/OMIM_ALL_FREQUENCIES_diseases_to_genes_to_phenotypes.txt
+	#"database":"ORPHA",#/work1/xuelab/project/liff/Data/HumanPhenotypeOntology/2017-09-18/rawdata/annotation/ORPHA_ALL_FREQUENCIES_diseases_to_genes_to_phenotypes.txt
+	"diseaseId"
+	"gene-symbol"
+	"gene-id(entrez)"
+	"HPO-ID"
+	"HPO-term-name"
+}
+

@@ -1,0 +1,20 @@
+#http://compbio.charite.de/jenkins/job/hpo.annotations/
+#http://compbio.charite.de/jenkins/job/hpo.annotations/lastSuccessfulBuild/artifact/misc/phenotype_annotation.tab
+#/work1/xuelab/project/liff/Data/HumanPhenotypeOntology/2017-09-18/rawdata/annotation/phenotype_annotation.tab
+
+##document：http://human-phenotype-ontology.github.io/documentation.html
+{
+	"DB":"DECIPHER"#第1列
+	"DB_Object_ID":"1",#第2列
+	"DB_Name":"Wolf-Hirschhorn Syndrome",#第3列
+	"Qualifier":"", #注释质量，#第4列
+	"DB:Reference":"",#第6列
+	"Evidence_code":"IEA",#第7列
+	"Onset modifier":,#第8列
+	"Frequency modifier":,#第9列
+	"Aspect":##one of O (Phenotypic abnormality), I (inheritance), C (onset and clinical course) or M (Mortality/Aging). This field is mandatory; cardinality 1
+			 #第11列
+	"Synonym":"WOLF-HIRSCHHORN SYNDROME",#第12列
+	"Date":"2013-05-29", #第13列
+	"Assigned by":[],#分号分隔，第14列
+}

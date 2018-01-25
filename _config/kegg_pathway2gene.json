@@ -1,0 +1,14 @@
+http://www.kegg.jp/kegg-bin/get_htext?hsa00001
+
+{
+	"path_id":00010,
+	"path_name":"Glycolysis / Gluconeogenesis",
+	"path_class":"Metabolism",
+	"path_subclass":"Carbohydrate metabolism",
+	"entrez_gene_id":3101,
+	"gene_symbol":"HK3",
+	"gene_name":"hexokinase 3",
+	"KO_Entry":"K00844",
+	"Name":"HK",
+	"Definition":"hexokinase [EC:2.7.1.1]",
+}

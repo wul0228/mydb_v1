@@ -1,0 +1,21 @@
+http://dgidb.org/api/v2/drugs
+
+{
+
+  "name":"TESAMORELIN",
+  "chembl_id":"CHEMBL1237026",
+  "fda_approved":true,
+  "immunotherapy":false,
+  "anti_neoplastic":false,
+  "alias":[
+	"178103540",
+	"6959",
+	"DAP001556",
+	"GHRH(1-44)",
+	"N-[(3E)-1-oxo-3-hexenyl]Somatoliberin (human pancreatic islet)",
+	"218949-48-5",
+	"Egrifta",
+	"DB08869"
+  ]
+
+}

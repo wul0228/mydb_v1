@@ -1,0 +1,107 @@
+****************************************************************************************************
+DisGeNET
+
+DisGeNET is a discovery platform containing one of the largest publicly available collections of genes and variants associated to human diseases 
+		 
+		DisGeNET integrates data from expert curated repositories, GWAS catalogues, animal models and the scientific literature. DisGeNET data are homogeneously annotated with controlled vocabularies and community-driven ontologies. Additionally, several original metrics are provided to assist the prioritization of genotype–phenotype relationships.
+
+================================================================================
+disgenet.disgene.curated
+
+
+
+----------------------------------------------------------------------------------------------------
+diseaseType:
+		The DisGeNET disease type: disease, phenotype and group.
+			disease:
+				We consider a disease entries mapping to the following 
+				UMLS® semantic types:
+					- Disease or Syndrome 
+					- Neoplastic Process 
+					- Acquired Abnormality 
+					- Anatomical Abnormality 
+					- Congenital Abnormality 
+					- Mental or Behavioral Dysfunction	
+			phenotype:
+				We consider a phenotype entries mapping to the following 
+				UMLS® semantic types:
+					- Pathologic Function 
+					- Sign or Symptom 
+					- Finding 
+					- Laboratory or Test Result 
+					- Individual Behavior 
+					- Clinical Attribute 
+					- Organism Attribute 
+					- Organism Function 
+					- Organ or Tissue Function 
+					- Cell or Molecular Dysfunction
+			group:
+				These classifications were manually checked. In addition, disease entries referring to disease groups such as "Cardiovascular Diseases", "Autoimmune Diseases", "Neurodegenerative Diseases", and "Lung Neoplasms" were classified as disease group .
+
+associationType:
+		The description of each association type in our ontology is:
+			Therapeutic:
+				This relationship indicates that the gene/protein has a therapeutic role in the amelioration of the disease.
+			Biomarker:
+				This relationship indicates that the gene/protein either playsa role in the etiology of the disease (e.g. participates in the molecular mechanism that leads to disease) or is a biomarker for a disease.
+			GenomicAlterations:
+				This relationship indicates that a genomic alteration is linked to the gene associated with the disease phenotype.
+			GeneticVariation:
+				This relationship indicates that a sequence variation (a mutation, a SNP) is associated with the disease phenotype, but there is still no evidence to say that the variation causes the disease.
+			CausalMutation:
+				This relationship indicates that there are allelic variants or mutations known to cause the disease.
+			GermlineCausalMutation:
+				This relationship indicates that there are germline allelic variants or mutations known to cause the disease, and they may be passed on to offspring.
+			SomaticCausalMutation:
+				This relationship indicates that there are somatic allelic variants or mutations known to cause the disease, but they may not be passed on to offspring.
+			ChromosomalRearrangement:
+				This relationship indicates that a gene is included in a chromosomal rearrangement associated with a particular manifestation of the disease.
+			FusionGene:
+				This relationship indicates that the fusion between two different genes (between promoter and/or other coding DNA regions) is associated with the disease.
+			SusceptibilityMutation:
+				This relationship indicates that a gene mutation in a germ cell that predisposes to the development of a disorder, and that is necessary but not sufficient for the manifestation ofthe disease.
+			ModifyingMutation: 
+				This relationship indicates that a gene mutation is known to modify the clinical presentation of the disease.
+			GermlineModifyingMutation:
+				This relationship indicates that a germline gene mutation modifies the clinical presentation of the disease, and it maybe passed on to offspring.
+			SomaticModifying Mutation:
+				This relationship indicates that a somatic gene mutation modifies the clinical presentation of the disease, but it maynot be passed on to offspring.
+			AlteredExpression:
+				This relationship indicates that an altered expression of thegene is associated with the disease phenotype.
+			Post-translational Modification:
+				This relationship indicates that alterations in the function of the protein by means of post-translational modifications (methylation or phosphorylation of the protein) are associated with the disease phenotype.
+
+associationType implication:
+		The implication of "associationType" field
+
+sentence:
+		
+
+diseaseId:
+		
+
+pmid link:
+		
+
+originalSource:
+		The field lists the source of gene-disease-pmid associations. included: UNIPROT, CTD (human subset), PsyGeNET, Orphanet, and the HPO.
+
+diseaseId link:
+		
+
+score:
+		The Gene-Disease Association Score is computed according to: http://www.disgenet.org/web/DisGeNET/menu/dbinfo#gdascore
+
+diseaseName:
+		the disease name, provided by the UMLS® Metathesaurus® https://www.nlm.nih.gov/research/umls/
+
+geneSymbol:
+		NCBI gene symbol.
+
+pmid:
+		
+
+geneId:
+		The gene identifer in NCBI.
+
+

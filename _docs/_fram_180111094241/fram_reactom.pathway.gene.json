@@ -1,0 +1,10 @@
+{
+    "entrez_id": "NCBI gene id", 
+    "path_org": "The species of this pathway.", 
+    "evidence": "The evidence of the relationship between genes and pathways.", 
+    "path_id": "The unique identifier of pathway in Reactome.",
+	"_db_description":"REACTOME is an open-source, open access, manually curated and peer-reviewed pathway database. Our goal is to provide intuitive bioinformatics tools for the visualization, interpretation and analysis of pathway knowledge to support basic and clinical research, genome analysis, modeling, systems biology and education. ",
+	"_subdb_description":"The pathway gene annotaion.",
+	"_db_name":"Reactome",
+	"_subdb_name":"reactom.pathway.gene"	
+}

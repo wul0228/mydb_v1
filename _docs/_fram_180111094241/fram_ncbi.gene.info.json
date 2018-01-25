@@ -1,0 +1,22 @@
+{
+    "dbXrefs": "Identifiers in other databases for this gene. The unit of the set is database:value.Note that HGNC and MGI include 'HGNC' and 'MGI', respectively, in the valuepart of their identifier. Consequently,dbXrefs for these databases will appear like:////HGNC:HGNC:1100----This would be interpreted as database='HGNC', value='HGNC:1100'////MGI:MGI:104537----This would be interpreted as database='MGI', value='MGI:104537'",
+    "description": "a descriptive name for this gene", 
+    "Modification_date": "", 
+    "Nomenclature_status": "when not '-', indicates the status of the name from the nomenclature authority (O for official, I for interim)", 
+    "Symbol": "NCBI gene symbol", 
+    "Full_name_from_nomenclature_authority": "when not '-', indicates that this full name is from a nomenclature authority", 
+    "LocusTag": "the LocusTag value ////ASN1:  gene->locus-tag", 
+    "Synonyms": "unofficial symbols for the gene", 
+    "type_of_gene": "the type assigned to the gene according to the list of options////biological-region////miscRNA////ncRNA////protein-coding////pseudo////rRNA////scRNA////snoRNA////snRNA////tRNA////unknown////other",
+    "chromosome": "the chromosome on which this gene is placed.for mitochondrial genomes, the value 'MT' is used.", 
+    "tax_id": "the unique identifier provided by NCBI Taxonomy for the species or strain/isolate.", 
+    "map_location": "the map location for this gene", 
+    "Other_designations": "alternate descriptions that have been assigned to a GeneID'-' indicates none is being reported.", 
+    "Symbol_from_nomenclature_authority": "when not '-', indicates that this symbol is from a nomenclature authority", 
+    "GeneID": "NCBI entrez gene id", 
+    "Feature_type": "annotated features and their classes or controlled vocabularies, displayed as feature_type:feature_class or feature_type:controlled_vocabulary, when appropriate; derived from select feature annotations on RefSeq(s) associated with the GeneID	",
+	"_db_description":"Gene integrates information from a wide range of species. A record may include nomenclature, Reference Sequences (RefSeqs), maps, pathways, variations, phenotypes, and links to genome-, phenotype-, and locus-specific resources worldwide.",
+	"_subdb_description":"The basic information of genes.",
+	"_db_name":"NCBI Gene",
+	"_subdb_name":"ncbi.gene.info"
+}

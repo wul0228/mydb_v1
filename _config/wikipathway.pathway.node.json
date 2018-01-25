@@ -1,0 +1,11 @@
+
+每天更新，下载链接： 410个pathway
+https://www.wikipathways.org//wpi/batchDownload.php?species=Homo%20sapiens&fileType=txt&tag=Curation:AnalysisCollection
+天津服务器：
+/work1/xuelab/project/liff/Data/wikipathways/wikipathways_Homo_sapiens_Curation-AnalysisCollection__txt
+
+{
+	"path_id":"WP399",
+	"node_id":"5832",
+	"Database":"Entrez Gene"
+}

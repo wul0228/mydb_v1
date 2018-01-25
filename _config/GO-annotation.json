@@ -1,0 +1,20 @@
+下载链接：
+ftp://ftp.ebi.ac.uk/pub/databases/GO/goa/HUMAN/goa_human.gpa.gz
+天津服务器：
+/work1/xuelab/project/liff/Data/GO/2017-10-27/rawdata/GOA/HUMAN/goa_human.gpa
+
+#基因字段：DB_Object_ID，来自uniprot id，
+{
+	"DB":"UniProtKB", 
+	"DB_Object_ID":"A0A024R161",
+	"Qualifier":"enables",
+	"GO ID":"GO:0004871",
+	"DB:Reference":"GO_REF:0000038",
+	"ECO evidence code":"ECO:0000323",
+	"With/From":"UniProtKB-KW:KW-0807",
+	"Interacting taxon ID":"",
+	"Date":"20171021",
+	"Assigned_by":"",
+	"Annotation Extension"
+	"Annotation Properties":"go_evidence=IEA"
+}

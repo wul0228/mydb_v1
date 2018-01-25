@@ -1,0 +1,9 @@
+{
+    "entrez_id": "NCBI gene id", 
+    "path_org": "The species name of the pathway", 
+    "path_id": "The unnique identifier for pathway in WikiPathways.",
+	"_db_description":"WikiPathways is a database of biological pathways maintained by and for the scientific community.",
+	"_subdb_description":"The pathway gene annotation.",
+	"_db_name":"WikiPathways",
+	"_subdb_name":"wiki.pathway.gene"		
+}

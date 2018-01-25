@@ -1,0 +1,14 @@
+https://reactome.org/download/current/diagram/R-HSA*.graph.json
+https://reactome.org/download/current/ReactionPMIDS.txt
+{
+	"path_id":
+	"path_name"
+	"reaction_stId" : "R-HSA-77585",
+	"displayName" : "Recruitment of U7 snRNP:ZFP100 complex to the SLBP Bound Pre-mRNA",
+	"schemaClass" : "Reaction",
+	"preceding" : [ 77584 ],
+	"following" : [ 77585 ],
+	"inputs" : [ 110759, 110765 ],
+	"outputs" : [ 110766 ],
+	"reaction_pmid"
+}

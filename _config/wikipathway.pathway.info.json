@@ -1,0 +1,28 @@
+1. http://webservice.wikipathways.org/listPathways?organism=Homo%20sapiens 有954个pathway
+2. https://www.wikipathways.org/index.php/Download_Pathways 403个pathway
+{
+	"path_id":"WP692",
+	"path_name"
+	"descript"
+	"organism":"Homo_sapiens",
+	"WikiPathways-category":[],
+	"path_link":"https://www.wikipathways.org/index.php/Pathway:WP692"
+	"pathway_ontology":[
+		{
+			"term":"sulfonation conjugation pathway",
+			"id":"PW:0000860",
+			"link":"http://bioportal.bioontology.org/ontologies/PW?p=classes&conceptid=http%3A%2F%2Fpurl.obolibrary.org%2Fobo%2FPW_0000860"
+		},
+
+	]
+	"PublicationXref":[
+		{
+			"id":12439736,
+			"pubmed_link":"http://www.ncbi.nlm.nih.gov/pubmed/12439736",
+			"title":"ulfation through the looking glass--recent advances in sulfotransferase research for the curious",
+			"source":"Pharmacogenomics J",
+			"year":2002,
+			"authors":"Coughtrie MW",
+		}
+	],
+}

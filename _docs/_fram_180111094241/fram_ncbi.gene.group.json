@@ -1,0 +1,8 @@
+{
+    "gene_group":"////Other_GeneID:the related gene's GeneID ////Other_tax_id:the related gene's tax_id////relationship:the type of relationship between the two genes, e.g. GeneID has a 'relationship' to Other GeneID,included:----Ortholog----Potential readthrough sibling----Readthrough child----Readthrough parent----Readthrough sibling----Region member----Region parent----Related functional gene----Related pseudogene", 
+    "GeneID": "NCBI entrez gene id",
+	"_db_description":"Gene integrates information from a wide range of species. A record may include nomenclature, Reference Sequences (RefSeqs), maps, pathways, variations, phenotypes, and links to genome-, phenotype-, and locus-specific resources worldwide.",
+	"_subdb_description":"report of genes and their relationships to other genes",
+	"_db_name":"NCBI Gene",
+	"_subdb_name":"ncbi.gene.group"
+}

@@ -1,0 +1,65 @@
+下载路径：
+GRch38:
+ftp://ftp.ensembl.org/pub/current_gtf/homo_sapiens/Homo_sapiens.GRCh38.90.chr.gtf
+GRch37:
+ftp://ftp.ensembl.org/pub/grch37/current/gtf/homo_sapiens/Homo_sapiens.GRCh37.87.chr.gtf.gz
+天津集群：
+GRch38:
+/work1/xuelab/project/liff/Data/ensembl/GRch38/v90/rawdata/gtf/homo_sapiens/Homo_sapiens.GRCh38.90.chr.gtf
+GRch37:
+/work1/xuelab/project/liff/Data/ensembl/GRch37/v87/rawdata/Homo_sapiens.GRCh37.87.chr.gtf.gz
+{
+	"gene_id":"ENSG00000223972",
+	"gene_name":"DDX11L1",
+	"assembly":"ensembl_GRCh38",
+	"chr":1,
+	"start":11869,
+	"end":14409,
+	"strand":"+",
+	"gene_version":5;
+	"gene_source":"havana",
+	"gene_biotype":"transcribed_unprocessed_pseudogene",
+    "transcript_id":"ENST00000456328",
+	"transcript_start":11869,
+	"transcript_end":14409,
+	"transcript_version":2,
+	"transcript_name":"DDX11L1-202",
+	"transcript_source":"havana",
+	"transcript_biotype":"processed_transcript",
+	"havana_transcript": "OTTHUMT00000362751",
+	"tag":["basic",]
+	"transcript_support_level":1,
+	"Selenocysteine":[
+		
+	],
+	"exon":[
+	{
+		"exon_number":1,
+		"exon_start": 7673207, 
+		"exon_end": 7673339, 
+		"exon_id": "ENSE00003735852", 
+		"exon_version": "1"
+		"stop_codon": [
+				7673307, 
+				7673309
+		],
+		"start_codon":[],
+		"cds": [
+				{
+					"cds_start": 7673310, 
+					"protein_version": "2", 
+					"cds_end": 7673339, 
+					"protein_id": "ENSP00000391127"
+				}
+		], 
+	},
+  ],
+	"five_prime_utr_start":7676595,
+	"five_prime_utr_end": 7676622,
+	"three_prime_utr_start":7668404,
+	"three_prime_utr_end": 7669690,
+},
+
+
+
+

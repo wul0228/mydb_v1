@@ -1,0 +1,12 @@
+{
+    "group1_info": "The information of group1 of this interaction.////name:	group name////type:	group type////comment:",
+    "group2_info":"The information of group2 of this interaction.",
+	"path_id": "", 
+    "group1": "group1 name", 
+    "effect_type": "The interaction type", 
+    "group2": "group2 name",
+	"_db_description":"WikiPathways is a database of biological pathways maintained by and for the scientific community.",
+	"_subdb_description":"The entry interaction information of this pathway",
+	"_db_name":"WikiPathways",
+	"_subdb_name":"wiki.pathway.interaction"		
+}

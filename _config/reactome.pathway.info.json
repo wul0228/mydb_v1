@@ -1,0 +1,12 @@
+https://reactome.org/download/current/ReactomePathways.txt
+https://reactome.org/download/current/pathway2summation.txt
+
+{
+	"path_id":
+	"path_name":
+	"org":"hsa",
+	"pathway_summation": #summation文件第3列
+	"path_link":"https://reactome.org/content/detail/R-HSA-15869"
+	"path_image":"https://reactome.org/PathwayBrowser/#/R-HSA-15869"
+	
+}

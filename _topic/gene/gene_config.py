@@ -24,11 +24,13 @@ lisdir = os.listdir
 #----------------------------------------------------------------------------------------------------------
 # gene topic include all models  
 include_model = [
-'ncbi_gene','proteinAtlas','go_gene',
+'ncbi_gene','proteinAtlas','go_gene','hgnc_gene',''
 'kegg_pathway','reactom_pathway','wiki_pathway',
 'disgenet_disease','cosmic_disease',
 'dgidb_drug','miRTarBase',
-'clinvar_variant','igsr_variant'
+'clinvar_variant',
+'hpo_phenotype',
+'igsr_variant',
 ]
 
 # key is model name .val is dbMap class in under model.py
@@ -45,8 +47,8 @@ modelMapClass = {
 'miRTarBase':miRTarBase.dbMap,
 'clinvar_variant':clinvar_variant.dbMap,
 'igsr_variant':igsr_variant.dbMap,
-# 'hpo_phenotypic':hpo_phenotypic.dbMap,
-# 'hgnc_gene':hgnc_gene.dbMap,
+'hgnc_gene':hgnc_gene.dbMap,
+'hpo_phenotype':hpo_phenotype.dbMap,
 }
 
 # map function in dbMap for gene_topic build
@@ -58,14 +60,16 @@ model_cols = {
     'proteinAtlas':['proteinatlas.geneanno',],
     'go_gene':['go.info','go.geneanno',],
     'kegg_pathway':['kegg.pathway.info','kegg.pathway.gene','kegg.pathway.relation'],
-    'reactom_pathway':['reactom.pathway.info','reactom.pathway.gene','reactom.pathway.event','reactom.pathway.interaction'],
+    'reactom_pathway':['reactom.pathway.info','reactom.pathway.gene','reactom.pathway.event',],#'reactom.pathway.interaction'],
     'wiki_pathway':['wiki.pathway.info','wiki.pathway.gene','wiki.pathway.interaction'],
     'disgenet_disease':['disgenet.disgene.curated',],
     'cosmic_disease':['cosmic.disgene',],
-    'dgidb_drug':['dgidb.drug.info','dgidb.drug.gene'],
+    'dgidb_drug':['dgidb.drug.gene',],#'dgidb.drug.info'],
     'miRTarBase':['mirtarbase.mirgene'],
     'clinvar_variant':['clinvar.variant'],
     'igsr_variant':['igsr.variant'],
+    'hgnc_gene':['hgnc.gene'],
+    'hpo_phenotype':['hpo.phenotype.info','hpo.phenotype.gene'],
 }
 
 # col keys in model for gene_topic
@@ -92,6 +96,10 @@ col_savekeys = {
     'mirtarbase.mirgene':['Target Gene (Entrez ID)','miRNA','Species (Target Gene)','miRTarBase ID','References (PMID)','Experiments','Support Type','Target Gene'],
     'clinvar.variant':['GeneID','Assembly','Chromosome','Start' ,'Stop', 'ReferenceAllele','AlternateAllele','Type','RS# (dbSNP)','RS_link','nsv/esv (dbVar)','dbVar_link','OriginSimple','PhenotypeList','ClinicalSignificance','ReviewStatus'],
     'igsr.variant':['ID','AF','EAS_AF','AMR_AF','AFR_AF','EUR_AF','SAS_AF'],
+    'hgnc.gene':['hgnc_id','gene_family'],
+    'hpo.phenotype.info':['HPO-ID','HPO-ID-LINK','name','def'],
+    'hpo.phenotype.gene':['HPO-ID','Gene-ID','Gene-Name'],
+
 }
 col_query = {
     'ncbi.gene.info':{'GeneID':''},
@@ -116,6 +124,9 @@ col_query = {
      'mirtarbase.mirgene':{'miRTarBase ID':''},
      'clinvar.variant':{'AlleleID':'','HGNC_ID':''},
      'igsr.variant':{'ID':''},
+     'hgnc.gene':{'hgnc_id':''},
+     'hpo.phenotype.info':{'HPO-ID':'',},
+     'hpo.phenotype.gene':{'HPO-ID':'','Gene-ID':''}
 }
 
 geneFiledConvetor = {
@@ -124,6 +135,7 @@ geneFiledConvetor = {
     'entrez_id':'entrez_id',
     'HGNC_ID':'hgnc_id',
     'gene_id':'entrez_id',
+    'Gene-ID':'entrez_id'
 }
 
 
@@ -139,3 +151,35 @@ wiki_xrefdb_field ={
     'HGNC':'symbol',
     'Enzyme Nomenclature':'enzyme_id',
     }
+
+annotationClass = ['basicinfo','function','variant','regulation','phenotype','pathway','disease','drug','CGC']
+
+annotationClass_models = {
+'basicinfo':['ncbi_gene','proteinAtlas','hgnc_gene'],
+'function': ['go_gene'],
+'pathway':['kegg_pathway','reactom_pathway','wiki_pathway'],
+'disease':['disgenet_disease'],
+'CGC':['cosmic_disease'],
+'drug':['dgidb_drug'],
+'regulation':['miRTarBase'],
+'variant':['clinvar_variant','igsr_variant'],
+'phenotype':['hpo_phenotype']
+}
+
+
+standardDBName = {
+    'ncbi_gene':'NCBI',
+    'proteinAtlas':'The Human Protein Atlas',
+    'hgnc_gene':'HGNC',
+    'go_gene':'Gene Ontology(GO)',
+    'kegg_pathway':'KEGG',
+    'reactom_pathway':'REACTOME',
+    'wiki_pathway':'WikiPathways',
+    'disgenet_disease':'DisGeNET',
+    'cosmic_disease':'COSMIC',
+    'dgidb_drug':'DGIdb',
+    'miRTarBase':'MiRTarBase',
+    'clinvar_variant':'ClinVar',
+    'igsr_variant':'IGSR_1000genomes',
+    'hpo_phenotype':'Human Phenotype Ontology(HPO)'
+}

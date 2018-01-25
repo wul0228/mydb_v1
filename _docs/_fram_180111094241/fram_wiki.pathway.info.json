@@ -1,0 +1,15 @@
+{
+    "path_name": "pathway name indicated to path_id", 
+    "path_org": "The species name indicated to path_id,in this file the value is only \"Homo sapiens\".", 
+    "WikiPathways-description": "The Description section contains a description the pathway, entered by the author.", 
+    "path_revision": "The revision number of the version this pathway", 
+    "path_id": "The unnique identifier for pathway in WikiPathways.", 
+    "path_link": "The url of this pathway.", 
+    "PublicationXref": "the pathway related publications.",
+    "WikiPathways-category": "The field contains any ontology tags added to the pathway, and an interface for adding ontology tags. Ontology tags can be located through a search interface and browsable trees for the supported ontologies.", 
+    "openControlledVocabulary": "a specific ontology tag to a given pathway----term:		ontology term name----ontology:	----id:			ontology term id",
+	"_db_description":"WikiPathways is a database of biological pathways maintained by and for the scientific community.",
+	"_subdb_description":"The pathway basic information.",
+	"_db_name":"WikiPathways",
+	"_subdb_name":"wiki.pathway.info"	
+}

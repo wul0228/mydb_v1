@@ -1,0 +1,9 @@
+##http://compbio.charite.de/jenkins/job/hpo.annotations/
+#http://compbio.charite.de/jenkins/job/hpo.annotations.monthly/lastSuccessfulBuild/artifact/annotation/ALL_SOURCES_ALL_FREQUENCIES_phenotype_to_genes.txt
+
+{
+	"HPO-ID"
+	"HPO-Name"
+	"Gene-ID"
+	"Gene-Name"
+}

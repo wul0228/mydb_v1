@@ -1,0 +1,29 @@
+
+下载链接：
+ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/ALL.wgs.phase3_shapeit2_mvncall_integrated_v5b.20130502.sites.vcf.gz
+天津集群：
+#/work1/xuelab/project/liff/Data/1000genomes/rawdata/Phase3/ALL.wgs.phase3_shapeit2_mvncall_integrated_v5b.20130502.sites.vcf
+
+{
+	"chr":1,
+	"pos":10177,
+	"ID":"rs367896724",
+	"ref":"A",
+	"alt":"AC",
+	"QUAL":100,
+	"filter":"PASS",
+	"AC"
+	"AF"
+	"AN"
+	"NS"
+	"DP"
+	"EAS_AF"
+	"AMR_AF"
+	"AFR_AF"
+	"EUR_AF"
+	"SAS_AF"
+	"AA"
+	"VT"
+	
+}
+

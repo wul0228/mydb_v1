@@ -1,0 +1,10 @@
+##wget https://reactome.org/download/current/ReactomePathways.gmt.zip
+下载链接：
+https://reactome.org/download/current/NCBI2Reactome_All_Levels.txt 用这个
+
+
+{
+	"path_id"
+	"path_name"
+	"NCBIgeneId"
+}

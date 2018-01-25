@@ -1,0 +1,20 @@
+{
+    "assembly": "the name of the assembly'-' if not applicable", 
+    "orientation": "orientation of the gene feature on the genomic accession", 
+    "genomic_accession*version": "", 
+    "end_position": "end position of the gene feature on the genomic accessionposition value is 0-based", 
+    "GeneIDs_on_left": "set of GeneIDs for the nearest two non-overlapping genes on the left, or '-' if there are noneadditional GeneIDs may be included if the neighboring genes overlap each other", 
+    "start_position": "start position of the gene feature on the genomic accession position value is 0-based", 
+    "GeneID": "NCBI gene id", 
+    "overlapping_GeneIDs": "set of GeneIDs for all overlapping genes,or '-' if there are none", 
+    "distance_to_left": "distance to the nearest gene on the left, or '-' if there is none", 
+    "GeneIDs_on_right": "set of GeneIDs for the nearest two non-overlapping genes on the right, or '-' if there are noneadditional GeneIDs may be included if the neighboring genes overlap each other", 
+    "genomic_gi": "the gi for a genomic nucleotide accession", 
+    "distance_to_right": "distance to the nearest gene on the right, or '-' if there is none", 
+    "chromosome": "the chromosome on which this gene is placed.for mitochondrial genomes, the value 'MT' is used.'-' if not applicable", 
+    "tax_id": "the unique identifier provided by NCBI Taxonomy for the species or strain/isolate.",
+	"_db_description":"Gene integrates information from a wide range of species. A record may include nomenclature, Reference Sequences (RefSeqs), maps, pathways, variations, phenotypes, and links to genome-, phenotype-, and locus-specific resources worldwide.",
+	"_subdb_description":"reports neighboring genes for all genes placed on a given genomic sequence.",
+	"_db_name":"NCBI Gene",
+	"_subdb_name":"ncbi.gene.neighbors"
+}

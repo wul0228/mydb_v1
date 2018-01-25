@@ -1,0 +1,20 @@
+{
+    "Qualifier": "This column is used for explicit relations between the entity and the GO term. An entry in this column is required in this file format.The default relations are part_of (for Cellular Component), involved_in (for Biological Process) or enables (for Molecular Function). Other values that may be present in this field are: colocalizes_with andcontributes_to. ||||Any of these relations can be additionally qualified with 'NOT',||||Example: NOT|involved_in", 
+    "Annotation Properties implication": "", 
+    "GO ID": "The GO identifier for the term attributed to the DB_Object_ID.", 
+    "ECO evidence code": "This column is used for identifiers from the Evidence Code Ontology ||||(http://evidenceontology.googlecode.com/svn/trunk/eco.obo)|||| ||||Example: ECO:0000320", 
+    "Assigned_by": "Attribution for the source of the annotation.||||Examples: UniProtKB, AgBase", 
+    "DB": "Database from which annotated entity has been taken.Example UniProtKB", 
+    "With/From": "Additional identifier(s) to support annotations using certain evidence codes(including IEA, IPI, IGI, IMP, IC and ISS evidences).////Examples:----UniProtKB:O00341----InterPro:IPROO1878----RGD:123456----CHEBI:12345----Ensembl:ENSG00000136141----GO:0000001----EC:3.1.22.1", 
+    "Date": "The date of last annotation update in the format 'YYYYMMDD'", 
+    "DB:Reference Link": "The url indicated to DB:Reference", 
+    "DB:Reference": "A single reference cited to support an annotation. Where an annotation cannot reference a paper, this field will contain a GO_REF identifier. see http://www.geneontology.org/doc/GO.references for an explanation of the reference types used.||||Examples: ////PMID:9058808////DOI:10.1046/j.1469-8137.2001.00150.x////GO_REF:0000002////GO_REF:0000020", 
+    "Interacting taxon ID": "This field is only present in the GPAD format files and has been separatedfrom the dual taxon ID format allowed in the gene association format files.||||This taxon ID should inform on the other organism involved in a multi-species interaction. An interacting taxon identifier can only be used in conjunction with terms that have the biological process term 'GO:0051704; multi-organism process' or the cellular component term 'GO:0044215; other organism' as an ancestor. This taxon ID should inform on the other organism involved in the interaction. For further information please see: http://geneontology.org/page/go-annotation-conventions#interactionsExample: taxon:9606", 
+    "Annotation Properties": "evidence code,example :go_evidence=IEA", 
+    "DB_Object_ID": "A unique identifier in the database for the item being annotated.", 
+    "Annotation Extension": "Contains cross references to other ontologies/databases that can be used toqualify or enhance the GO term applied in the annotation.The cross-reference is prefaced by an appropriate GO relationship; references to multiple ontologies can be entered as linked (comma separated)or independent (pipe separated) statements.||||Examples: ////part_of(CL:0000084)////occurs_in(GO:0009536)////has_input(CHEBI:15422)////has_output(CHEBI:16761)////has_regulation_target(UniProtKB:P12345)|has_regulation_target(UniProtKB:P54321)////part_of(CL:0000017),part_of(MA:0000415)",
+	"_db_description":"The GO project has developed three structured ontologies that describe gene products in terms of their associated biological processes, cellular components and molecular functions in a species-independent manner. |||| ||||There are three separate aspects to this effort: ||||1) the development and maintenance of the ontologies themselves||||2) the annotation of gene products, which entails making associations betweenthe ontologies and the genes and gene products in the collaborating databases; ||||3) the development of tools that facilitate the creation, maintenance and use of ontologies.",
+	"_subdb_description":"The relation between genes and GO term.",
+	"_db_name":"Gene Ontology(GO)",
+	"_subdb_name":"go.geneanno"
+}

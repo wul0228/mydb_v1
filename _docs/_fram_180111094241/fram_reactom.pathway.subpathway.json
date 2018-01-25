@@ -1,0 +1,9 @@
+{
+    "path_org": "The species name of this pathway", 
+    "parent_path": "The parent pathway ", 
+    "child_path": "The children pathway",
+	"_db_description":"REACTOME is an open-source, open access, manually curated and peer-reviewed pathway database. Our goal is to provide intuitive bioinformatics tools for the visualization, interpretation and analysis of pathway knowledge to support basic and clinical research, genome analysis, modeling, systems biology and education. ",
+	"_subdb_description":"Pathway Hierarchy",
+	"_db_name":"Reactome",
+	"_subdb_name":"reactom.pathway.info"
+}

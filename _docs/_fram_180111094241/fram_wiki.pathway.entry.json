@@ -1,0 +1,13 @@
+{
+    "comment": "", 
+    "xref": "The entry id in other database. included:----EcoGene----Ensembl ----Ensembl Human----Entrez Gene----Enzyme Nomenclature----GeneOntology----HGNC----KEGG Genes----Kegg ortholog----KEGG ortholog----KEGG Orthology----miRBase mature sequence----miRBase Sequence----NCBI Protein----pato----Pfam----RefSeq----undefined----UniGene----Uniprot-SwissProt----Uniprot-TrEMBL----Wikidata----Wikipedia	",
+    "name": "entry name", 
+    "type": "entry type, included:||||----Complex----GeneProduct----Metabolite----Pathway----Protein----Rna----Other", 
+    "path_org": "", 
+    "path_id": "", 
+    "entry_id": "",
+	"_db_description":"WikiPathways is a database of biological pathways maintained by and for the scientific community.",
+	"_subdb_description":"The pathway entry information.",
+	"_db_name":"WikiPathways",
+	"_subdb_name":"wiki.pathway.entry"	
+}

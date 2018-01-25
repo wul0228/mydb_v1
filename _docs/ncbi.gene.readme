@@ -1,0 +1,208 @@
+****************************************************************************************************
+NCBI Gene
+
+Gene integrates information from a wide range of species. A record may include nomenclature, Reference Sequences (RefSeqs), maps, pathways, variations, phenotypes, and links to genome-, phenotype-, and locus-specific resources worldwide.
+
+================================================================================
+ncbi.gene.neighbors
+
+reports neighboring genes for all genes placed on a given genomic sequence.
+
+----------------------------------------------------------------------------------------------------
+assembly:
+		the name of the assembly'-' if not applicable
+
+orientation:
+		orientation of the gene feature on the genomic accession
+
+end_position:
+		end position of the gene feature on the genomic accessionposition value is 0-based
+
+overlapping_GeneIDs:
+		set of GeneIDs for all overlapping genes,or '-' if there are none
+
+start_position:
+		start position of the gene feature on the genomic accession position value is 0-based
+
+chromosome:
+		the chromosome on which this gene is placed.for mitochondrial genomes, the value 'MT' is used.'-' if not applicable
+
+GeneIDs_on_left:
+		set of GeneIDs for the nearest two non-overlapping genes on the left, or '-' if there are noneadditional GeneIDs may be included if the neighboring genes overlap each other
+
+distance_to_left:
+		distance to the nearest gene on the left, or '-' if there is none
+
+GeneIDs_on_right:
+		set of GeneIDs for the nearest two non-overlapping genes on the right, or '-' if there are noneadditional GeneIDs may be included if the neighboring genes overlap each other
+
+genomic_gi:
+		the gi for a genomic nucleotide accession
+
+genomic_accession*version:
+		
+
+distance_to_right:
+		distance to the nearest gene on the right, or '-' if there is none
+
+GeneID:
+		NCBI gene id
+
+tax_id:
+		the unique identifier provided by NCBI Taxonomy for the species or strain/isolate.
+
+
+================================================================================
+ncbi.gene.group
+
+report of genes and their relationships to other genes
+
+----------------------------------------------------------------------------------------------------
+gene_group:
+		
+			Other_GeneID:the related gene's GeneID 
+			Other_tax_id:the related gene's tax_id
+			relationship:the type of relationship between the two genes, e.g. GeneID has a 'relationship' to Other GeneID,included:
+				Ortholog
+				Potential readthrough sibling
+				Readthrough child
+				Readthrough parent
+				Readthrough sibling
+				Region member
+				Region parent
+				Related functional gene
+				Related pseudogene
+
+GeneID:
+		NCBI entrez gene id
+
+
+================================================================================
+ncbi.gene.pubmed
+
+the gene related publications
+
+----------------------------------------------------------------------------------------------------
+PubMed_ID:
+		the unique identifier in PubMed for a citation
+
+GeneID:
+		NCBI Gene ID
+
+
+================================================================================
+ncbi.gene.expression
+
+The expression information of the gene in different tissues.
+
+----------------------------------------------------------------------------------------------------
+full_rpkm:
+		read depth normalized by gene length and by sequencing depth of the sample
+
+source_name:
+		name of tissue or developmental stage for the sample
+
+sample_id:
+		NCBI BioSample ID
+
+exp_total:
+		read depth times bases covered from this sample for this gene; unnormalized
+
+sra_id:
+		
+
+project_desc:
+		NCBI Bioproject ID
+
+exp_rpkm:
+		full_rpkm rounded to three significant figures
+
+GeneID:
+		NCBI gene id
+
+
+================================================================================
+ncbi.gene.info
+
+The basic information of genes.
+
+----------------------------------------------------------------------------------------------------
+dbXrefs:
+		Identifiers in other databases for this gene. The unit of the set is database:value.Note that HGNC and MGI include 'HGNC' and 'MGI', respectively, in the valuepart of their identifier. Consequently,dbXrefs for these databases will appear like:
+			HGNC:HGNC:1100
+				This would be interpreted as database='HGNC', value='HGNC:1100'
+			MGI:MGI:104537
+				This would be interpreted as database='MGI', value='MGI:104537'
+
+description:
+		a descriptive name for this gene
+
+Modification_date:
+		
+
+Nomenclature_status:
+		when not '-', indicates the status of the name from the nomenclature authority (O for official, I for interim)
+
+Symbol:
+		NCBI gene symbol
+
+Full_name_from_nomenclature_authority:
+		when not '-', indicates that this full name is from a nomenclature authority
+
+Synonyms:
+		unofficial symbols for the gene
+
+LocusTag:
+		the LocusTag value 
+			ASN1:  gene->locus-tag
+
+GeneID:
+		NCBI entrez gene id
+
+Feature_type:
+		annotated features and their classes or controlled vocabularies, displayed as feature_type:feature_class or feature_type:controlled_vocabulary, when appropriate; derived from select feature annotations on RefSeq(s) associated with the GeneID	
+
+map_location:
+		the map location for this gene
+
+Symbol_from_nomenclature_authority:
+		when not '-', indicates that this symbol is from a nomenclature authority
+
+Other_designations:
+		alternate descriptions that have been assigned to a GeneID'-' indicates none is being reported.
+
+type_of_gene:
+		the type assigned to the gene according to the list of options
+			biological-region
+			miscRNA
+			ncRNA
+			protein-coding
+			pseudo
+			rRNA
+			scRNA
+			snoRNA
+			snRNA
+			tRNA
+			unknown
+			other
+
+chromosome:
+		the chromosome on which this gene is placed.for mitochondrial genomes, the value 'MT' is used.
+
+tax_id:
+		the unique identifier provided by NCBI Taxonomy for the species or strain/isolate.
+
+
+================================================================================
+gene.refseq
+
+gene founction description
+
+----------------------------------------------------------------------------------------------------
+summary:
+		gene founction description
+
+GeneID:
+		NCBI entrez gene id
+
+

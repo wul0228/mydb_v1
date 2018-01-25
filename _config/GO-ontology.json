@@ -1,0 +1,14 @@
+下载链接：
+ftp://ftp.geneontology.org/pub/go/ontology/go.obo
+天津服务器：
+/work1/xuelab/project/liff/Data/GO/2017-10-27/rawdata/go.obo
+
+{
+	"id":"GO:0000001",
+	"name":"mitochondrion inheritance",
+	"namespace":"biological_process",
+	"def":"\"The distribution of mitochondria, including the mitochondrial genome, into daughter cells after mitosis or meiosis, mediated by interactions between mitochondria and the cytoskeleton.\" [GOC:mcc, PMID:10873824, PMID:11389764]"
+	"comment":
+	"synonym":"\"mitochondrial inheritance\" EXACT []",
+	"is_a":["GO:0048308 ! organelle inheritance","GO:0048311 ! mitochondrion distribution"]
+}

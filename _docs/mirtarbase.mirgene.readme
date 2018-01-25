@@ -1,0 +1,39 @@
+****************************************************************************************************
+miRTarBase:the experimentally validated microRNA-target interactions database
+
+As a database, miRTarBase has accumulated more than three hundred and sixty thousand miRNA-target interactions (MTIs), which are collected by manually surveying pertinent literature after NLP of the text systematically to filter research articles related tofunctional studies of miRNAs. Generally, the collected MTIs are validated experimentally by reporter assay, western blot, microarray and next-generation sequencing experiments. While containing the largest amount of validated MTIs, the miRTarBase provides the most updated collection by comparing with other similar, previously developed databases.
+
+================================================================================
+mirtarbase.mirgene
+
+
+
+----------------------------------------------------------------------------------------------------
+Species (Target Gene):
+		
+
+miRTarBase ID:
+		The unique id in miRTarBase
+
+Species (miRNA):
+		
+
+miRNA:
+		
+
+Target Gene (Entrez ID):
+		Gene identification number according to "NCBI entrez gene id".
+
+References (PMID):
+		
+
+Experiments:
+		Experiment methods for search the interaction of miRNAs and genes.
+
+Support Type:
+		The evidence type of the interaction: week or strong.
+
+Target Gene:
+		gene symbol.
+
+

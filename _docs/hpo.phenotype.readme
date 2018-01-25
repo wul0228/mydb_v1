@@ -1,0 +1,185 @@
+****************************************************************************************************
+Human Phenotype Ontology(HPO)
+
+The Human Phenotype Ontology (HPO) aims to provide a standardized vocabulary ofphenotypic abnormalities encountered in human disease. Each term in the HPO describesa phenotypic abnormality, such as atrial septal defect. The HPO is currently beingdeveloped using the medical literature, Orphanet, DECIPHER, and OMIM. HPO currentlycontains approximately 11,000 terms (still growing) and over 115,000 annotations tohereditary diseases. The HPO also provides a large set of HPO annotations toapproximately 4000 common diseases.
+
+================================================================================
+hpo.phenotype.disgene
+
+
+
+----------------------------------------------------------------------------------------------------
+HPO-ID:
+		Unique id of the HPO term
+
+gene-id(entrez):
+		
+
+database:
+		Database from which annotated entity has been taken.
+		including:	OMIM,ORPHA
+
+diseaseId:
+		This is the identified of the annotated disease within the database indicated in the "database" field.
+
+gene-symbol:
+		
+
+HPO-term-name:
+		HPO term name
+
+
+================================================================================
+hpo.phenotype.info
+
+
+
+----------------------------------------------------------------------------------------------------
+comment:
+		Any extra information about the term and its usage.
+
+subset:
+		
+
+xref:
+		Database cross-references, or dbxrefs, refer to identical or very similar objects in other databases.
+
+synonym:
+		This field lists alternative words or phrases closely related in meaning tothe term name.
+
+name:
+		HPO term name
+
+is_anonymous:
+		
+
+is_obsolete:
+		
+
+created_by:
+		
+
+creation_date:
+		
+
+is_a:
+		Relationships to other terms.All relationships in the HPO are is-arelationships,
+					
+		i.e. simple class-subclass relationships. 
+
+HPO-ID:
+		Unique id of the HPO term.
+
+HPO-ID-LINK:
+		The url  of HPO term.
+
+property_value:
+		
+
+replaced_by:
+		
+
+alt_id:
+		Alternate IDs that refer to a term.
+
+def:
+		A textual description of what the term represents, plus reference(s) to thesource of the information. 
+
+consider:
+		
+
+
+================================================================================
+hpo.phenotype.disease
+
+
+
+----------------------------------------------------------------------------------------------------
+DB_Object_ID:
+		 This is the identified of the annotated disease within the database indicated in "DB".
+
+Frequency_modifier:
+		A term-id from the HPO-sub-ontology below the term “Frequency” (HP:0040279).(since December 2016 ; before was a mixture of values). The terms for frequency are in alignment with Orphanet.
+
+Qualifier:
+		This optional field can be used to qualify the annotation shown in "HPO ID".Possible values of this field are NOT, SECONDARY, MILD,MODERATE,SEVERE. 
+		If multiple qualifiers are shown, they are separated by a comma (“,”) symbol. The meaning of individual modifiers is as follows:
+		
+			NOT:
+				The disorder being annotated is NOT characterized by the feature associated with HPO_ID . Note that annotations with the NOT modifier are moved to separate file!
+				
+			SECONDARY:
+				The feature is a secondary consequence of a primary pathophysiological event in another organ. For instance, although Jaundice is observed in the skin or sclerae, it is secondary to abnormalities in other organs. 
+				For instance, to indicate that jaundice seen in a certain disease is secondary to Cholestatic liver disease, we would annotate SECONDARY(HP:0002611), where HP:0002611 is the HPO identified of the term Cholestatic liverdisease.
+				
+			MILD, MODERATE, SEVERE, CHRONIC, PROGRESSIVE, NONPROGRESSIVE, EPISODIC, RECURRENT, PROFOUND, BILATERAL, DISTAL, GENERALIZED, PROXIMAL, REFRACTORY: 
+				In general, it is preferred to annotate with a term describing the underlying abnormality, such as Hearing loss, and to use qualifiers such as MILD, MODERATE, SEVERE if thought necessary to describe the severity of the clinical involvement. This is preferred because of the assumption that mild and moderate manifestations of specific medical abnormalities result from mild or moderate disturbances of the same cellular and physiological networks and also because distinctions that are often heard in clinical practice 
+				such as 
+				“mild-to-moderate” or grade “II-III/VI” often seem more or less arbitrary. 
+				It is an error to use more than one of the qualifiers MILD, MODERATE,SEVERE, 
+				
+				etc. in one annotation. 
+				It is expected that software does not depend on the qualifiers being listed in a certain order. Note that Frequency information is available in "Frequency modifier".
+
+Assigned_by:
+		This refers to the center or user making the annotation.
+
+DB:
+		Database from which annotated entity has been taken.including:	DECIPHER, OMIM,ORPHA
+
+Evidence_code:
+		This required field indicates the level of evidence supporting the annotation.
+				
+		At the kickoff of the HPO, most annotations were extracted by parsing the Clinical Features sections of the omim.txt file. These annotations are assigned the evidence code “IEA” (inferred from electronic annotation). 
+			
+		Other codes include “PCS” for published clinical study. This should be used for information extracted from articles in the medical literature. Generally, annotations of this type will include the pubmed id of the published study in the DB:Reference field. 
+		Finally, “ICE” can be used for annotations based on individual clinical experience. 
+		This may be appropriate for disorders with a limited amount of published data. 
+		This must be accompanied by an entry in the DB:Reference field denoting the individual or center performing the annotation together with an identifier.
+			
+		For instance, GH:007 might be used to refer to the seventh such annotation made by a specialist from Gotham Hospital. (assuming the prefix GH has been registered with the HPO). 
+		We have also included “ITM” to mark annotations retrieved by text-mining (inferred by text-mining).
+			
+		Finally we have TAS, which stands for “traceable author statement”, usually reviews or disease entries (e.g. OMIM) that only refers to the original publication.
+
+HPO-ID:
+		Unique id of the HPO term.
+
+DB:Reference:
+		This required field indicates the source of the information used for theannotation. This may be the clinical experience of the annotator or may betaken from an article as indicated by a pubmed id. Each collaboratingcenter of the Human Phenotype Ontology consortium is assigned a HPO:Ref id.In addition, if appropriate, a pubmed id for an article describing theclinical abnormality may be used.
+
+Aspect:
+		one of O (Phenotypic abnormality), I (inheritance), C (onset and clinical course) or M (Mortality/Aging). This field is mandatory; cardinality 1
+
+DB_Name:
+		This is the name of the disease associated with the DB_Object_ID in the database. Only the accepted name should be used, synonyms should not be listed here.
+
+Date:
+		Date on which the annotation was made; format is YYYY.MM.DD this field is mandatory, cardinality 1
+
+Synonym:
+		This optional field can be used for a common abbreviation for the diseasereferred to by the DB_Object_ID such as “NF1” for neurofibromatosis type 1or “MFS” for Marfan syndrome. It can also be used to store alternate namesfor a disorder. Individual synonyms should be separated by a pipe(“|”)symbol.
+
+Onset_modifier:
+		
+
+
+================================================================================
+hpo.phenotype.gene
+
+
+
+----------------------------------------------------------------------------------------------------
+HPO-Name:
+		HPO term name
+
+HPO-ID:
+		Unique id of the HPO term.
+
+Gene-ID:
+		NCBI gene id
+
+Gene-Name:
+		gene symbol
+
+

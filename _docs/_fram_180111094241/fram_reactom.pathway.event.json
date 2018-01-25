@@ -1,0 +1,23 @@
+{
+    "event_pmid": "the event related publications", 
+    "schemaClass": "Reaction:||||BlackBoxEvent :The BlackBoxEvent class is used for ‘unbalanced’ reactions like protein synthesis or degradation, as well as ‘shortcut’ reactions for more complex processes that essentially convert inputs into outputs, e.g. the series of cyclical reactions involved in fatty acid biosynthesis.||||FailedReaction :////Defines an event where genetic mutations in the nucleotide sequence produces a protein with a very little or no activity. \" +----\"The consequence of this is that substrates are not converted to products and can therefore build up to cause pathological conditions. \" +----\"It could also mean entities are not moved between compartments again causing imbalances in entity concentrations which can lead to pathological conditions.\";||||	||||Polymerisation:The De-/Polymerisation classes can hold reactions that describe the mechanics of a de-/polymerisation reaction, which is inherently ‘unbalanced’ due to the nature of a Polymer (that remains the ‘same’ entity even after adding or subtracting a unit).||||Depolymerisation:",
+	"requirements": "", 
+    "event_id": "The unique identifier of reaction in Reactome", 
+    "path_org": "", 
+    "catalysts": "catalysts of this event", 
+    "inhibitors": "inhibitors of this event", 
+    "outputs": "The output of this event", 
+    "diagramIds": "", 
+    "inputs": "The input of this event", 
+    "dbId": "The unique identifier of reaction in Reactome", 
+    "preceding": "The preceding event of this event.", 
+    "displayName": "The name of this event in Reactome.", 
+    "event_link": "The url of this event.", 
+    "path_id": "", 
+    "following": "", 
+    "activators": "Activators of this event.",
+	"_db_description":"REACTOME is an open-source, open access, manually curated and peer-reviewed pathway database. Our goal is to provide intuitive bioinformatics tools for the visualization, interpretation and analysis of pathway knowledge to support basic and clinical research, genome analysis, modeling, systems biology and education. ",
+	"_subdb_description":"reactions and interactions between nodes in Reactome pathway.////details in:----https://reactome.org/documentation/data-model",
+	"_db_name":"Reactome",
+	"_subdb_name":"reactom.pathway.event"		
+}

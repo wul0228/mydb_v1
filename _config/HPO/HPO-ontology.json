@@ -1,0 +1,11 @@
+
+#/work1/xuelab/project/liff/Data/HumanPhenotypeOntology/2017-09-18/rawdata/ontology/hp_20171121.obo.txt
+"id":"HP:0000001",#有且只有一个
+"name":"All",#有且只有一个
+"def":"", #0或1个
+
+#以下字段不确定是否唯一，写成数组
+"comment":[],#不一定有
+"xref":["UMLS:C0444868"],
+"synonym":[],
+"is_a":[],

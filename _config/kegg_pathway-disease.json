@@ -1,0 +1,10 @@
+http://www.genome.jp/kegg/brite.html#disease
+http://www.genome.jp/kegg-bin/get_htext?br08402.keg
+http://www.genome.jp/kegg-bin/get_htext?br08401.keg
+{
+	"path_id":
+	"disease_id":
+	"disease_name":
+	"disease_class"
+	"disease_subclass"
+}

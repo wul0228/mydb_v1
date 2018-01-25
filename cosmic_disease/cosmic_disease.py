@@ -30,7 +30,7 @@ def downloadData():
     
     return
 
-def extractData(filepath,version):
+def extractData(filepath,date):
     
     process = cosmic_parser(version)
 
@@ -39,6 +39,14 @@ def extractData(filepath,version):
     print 'extract and insert completed'
     
     return (filepath,version)
+
+    colhead = 'cosmic.disgene'
+
+    bkup_allCols('mydb_v1',colhead,cosmic_disease_db)
+
+    print 'extract and insert completed'
+
+    return (filepath,date)
 
 def updateData():
 
@@ -106,6 +114,8 @@ class dbMap(object):
 
     def __init__(self):
 
+        super(dbMap, self).__init__()
+        
         import commap
 
         from commap import comMap
@@ -158,20 +168,23 @@ class dbMap(object):
 
         print 'hgncSymbol2cosmicDiseaseID',len(output)
 
-        with open('./hgncSymbol2cosmicDiseaseID.json','w') as wf:
-            json.dump(output,wf,indent=8)
+        # with open('./hgncSymbol2cosmicDiseaseID.json','w') as wf:
+        #     json.dump(output,wf,indent=8)
 
         return (hgncSymbol2cosmicDiseaseID,'Entrez GeneId')
-class filter(object):
-    """docstring for filter"""
-    def __init__(self):
+        
+class dbFilter(object):
 
-        pass
+    """docstring for dbFilter"""
+
+    def __init__(self):
+        super(dbFilter, self).__init__()
         
     def gene_topic(self,doc):
 
         save_keys = ['Entrez GeneId','Somatic','Germline','Tumour Types(Somatic)','Tumour Types(Germline)','Cancer Syndrome','Tissue Type','Molecular Genetics','Role in Cancer','Mutation Types','Translocation Partner','Other Germline Mut','Other Syndrome','Hallmark','HallmarkInfo','categories']
         return filterKey(doc,save_keys)
+
 
 def main():
 
@@ -183,7 +196,8 @@ def main():
         
 if __name__ == '__main__':
     main()
+    # extractData('./','')
     # man = cosmic_parser('171220100108')
     # man.tsv()
-    man = dbMap()
-    man.dbID2hgncSymbol()
+    # man = dbMap()
+    # man.dbID2hgncSymbol()

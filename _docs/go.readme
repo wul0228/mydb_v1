@@ -1,0 +1,229 @@
+****************************************************************************************************
+Gene Ontology(GO)
+
+The GO project has developed three structured ontologies that describe gene products in terms of their associated biological processes, cellular components and molecular functions in a species-independent manner. 
+		 
+		There are three separate aspects to this effort: 
+		1) the development and maintenance of the ontologies themselves
+		2) the annotation of gene products, which entails making associations betweenthe ontologies and the genes and gene products in the collaborating databases; 
+		3) the development of tools that facilitate the creation, maintenance and use of ontologies.
+
+================================================================================
+go.info
+
+The basic information of GO terms.
+
+----------------------------------------------------------------------------------------------------
+subset:
+		This tag indicates a term subset to which this term belongs. The value ofthis tag must be a subset name as defined in a subsetdef tag in the fileheader. If the value of this tag is not mentioned in a subsetdef tag,a parse error will be generated. A term may belong to any number of subsets.
+
+comment:
+		A comment for this term. There must be zero or one instances of this tagper term description. More than one comment for a term generates a parseerror.
+
+disjoint_from:
+		This tag indicates that a term is disjoint from another, meaning that thetwo terms have no instances or subclasses in common. The value is the id ofthe term from which the current term is disjoint. This tag may not beapplied to relationship types.Parsers which support trailing modifiers may optionally parse the followingtrailing modifier tag for disjoint_from:
+		
+		namespace <any namespace id>
+		derived true OR false
+			
+		The namespace modifier allows the disjoint_from relationship to be assigned its own namespace.
+			
+		The derived modifier indicates that the disjoint_from relationship was notexplicitly defined by a human ontology designer, but was createdautomatically by a reasoner, and could be re-derived using the non-derivedrelationships in the ontology.
+
+consider:
+		Gives a term which may be an appropriate substitute for an obsolete term,but needs to be looked at carefully by a human expert before thereplacement is done.This tag may only be specified for obsolete terms. A single obsolete termmay have many consider tags. This tag can be used in conjunction withreplaced_by.
+
+creation_date:
+		Optional tag added by OBO-Edit to indicate the creator of the term
+
+alt_id:
+		Defines an alternate id for this term. A term may have any number of alternate ids.
+
+xref:
+		A dbxref that describes an analagous term in another vocabulary(see dbxref formatting for information about how the value of this tagmust be formatted). A term may have any number of xrefs.
+
+namespace:
+		Denotes which of the three sub-ontologies—cellular component, biological process or molecular function—the term belongs to.
+
+created_by:
+		Optional tag added by OBO-Edit to indicate the creator of the term
+
+relationship:
+		This tag describes a typed relationship between this term and another term.The value of this tag should be the relationship type id, and then the id of the target term. The relationship type name must be a relationship type name as defined in a typedef tag stanza. The [Typedef] must either occur ina document in the current parse batch, or in a file imported via an import header tag. If the relationship type name is undefined, a parse error will be generated. If the id of the target term cannot be resolved by the end ofparsing the current batch of files, this tag describes a "dangling reference"; see the parser requirements section for information about how a parser may handle dangling references. If a relationship is specified for a term with an is_obsolete value of true, a parse error will be generated.
+		Parsers which support trailing modifiers may optionally parse the followingtrailing modifier tags for relationships:
+			
+			not_necessary true OR false 
+			inverse_necessary true OR false 
+			namespace <any namespace id> 
+			derived true OR false 
+			cardinality any non-negative integer 
+			maxCardinality any non-negative integer 
+			minCardinality any non-negative integer
+			
+		The necessary modifier allows a relationship to be marked as "not necessarily true". 
+		The inverse_necessary modifier allows the inverse of a relationship to be marked "necessarily true".
+			
+		The namespace modifier allows the relationship to be assigned its own namespace (independant of the namespace of the parent, child, or type of the relationship).
+			
+		The derived modifier indicates that the relationship was not explicitly defined by a human ontology designer, but was created automatically by a reasoner, and could be re-derived using the non-derived relationships in the ontology.
+			
+		The various cardinality constraints specify the number of relationships of a given type that may be defined for instances of this term.
+			
+		This tag previously supported the completes trailing modifier. This modifier is now deprecated. Use the intersection_of tag instead.
+
+GO ID:
+		The GO identifier for the term attributed to the DB_Object_ID.
+
+is_obsolete:
+		Whether or not this term is obsolete. Allowable values are "true" and "false" (false is assumed if this tag is not present). Obsolete terms musthave no relationships, and no defined is_a, inverse_of, disjoint_from,union_of, or intersection_of tags.
+
+intersection_of:
+		This tag indicates that this term is equivalent to the intersection ofseveral other terms. The value is either a term id, or a relationship typeid, a space, and a term id.
+					
+		For example:
+		intersection_of: GO:0051319 ! G2 phase
+		intersection_of: part_of GO:0000278 ! mitotic cell cycle
+		
+		This means that the term is equivalent to any term that is both a subtypeof 'G2 phase' and has a part_of relationship to 'mitotic cell cycle'(i.e. the G2 phase of the mitotic cell cycle). Note that whilst relationshiptags specify necessary conditions, intersection_of tags specify necessaryand sufficient conditions.
+			
+		A collection of intersection_of tags appearing in a term is also known asa cross-product definition (this is the same as what OWL users know as adefined class, employing intersectionOf constructs).
+			It is strongly recommended that all intersection_of tags follow agenus-differentia pattern. In this pattern, one of the tags is directly toa term id (the genus) and the other tags are relation term pairs.
+					
+		For example:
+			
+		[Term]
+		id: GO:0045495 name: pole plasm
+		intersection_of: GO:0005737 ! cytoplasm
+		intersection_of: part_of CL:0000023 ! oocyte
+		
+		These definitions can be read as sentences, such as a pole plasm is acytoplasm that is part_of an oocyte
+		
+		If any intersection_of tags are specified for a term, at least twointersection_of tags need to be present or it is a parse error.
+		The full intersection for the term is the set of all ids specified by allintersection_of tags for that term.
+		
+		This tag may not be applied to relationship types.
+		
+		Parsers which support trailing modifiers may optionally parse the followingtrailing modifier tag for disjoint_from:
+				
+		namespace <any namespace id>
+
+property_value:
+		
+
+go id link:
+		The url of GO term
+
+replaced_by:
+		Gives a term which replaces an obsolete term. The value is the id of the replacement term. The value of this tag can safely be used to automatically reassign instances whose instance_of property points to an obsolete term.The replaced_by tag may only be specified for obsolete terms. A single obsolete term may have more than one replaced_by tag. This tag can be used in conjunction with the consider tag.
+
+synonym:
+		This tag gives a synonym for this term, some xrefs to describe the origins of the synonym, and may indicate a synonym category or scope information.
+				
+		The value consists of a quote enclosed synonym text, an optional scope identifier, an optional synonym type name, and an optional dbxref list, like this:
+				
+		synonym: "The other white meat" EXACT MARKETING_SLOGAN [MEAT:00324, BACONBASE:03021]
+				
+		The synonym scope may be one of four values: EXACT, BROAD, NARROW, RELATED.If the first form is used to specify a synonym, the scope is assumed to be RELATED.
+				
+		The synonym type must be the id of a synonym type defined by a synonymtypedef line in the header. If the synonym type has a default scope, that scope is used regardless of any scope declaration given by a synonym tag.
+				
+		The dbxref list is formatted as specified in dbxref formatting. A term may have any number of synonyms.
+
+name:
+		The term name. Any term may have only one name defined. If multiple term names are defined, it is a parse error.
+
+is_a:
+		This tag describes a subclassing relationship between one term and another.The value is the id of the term of which this term is a subclass. A term may have any number of is_a relationships.Parsers which support trailing modifiers may optionally parse the followingtrailing modifier tags for is_a:
+		
+		namespace <any namespace id> 
+		derived true OR false
+				
+		The namespace modifier allows the is_a relationship to be assigned its ownnamespace (independent of the namespace of the superclass or subclass of this is_a relationship).
+				
+		The derived modifier indicates that the is_a relationship was not explicitly defined by a human ontology designer, but was created automatically by a reasoner, and could be re-derived using the non-derived relationships in the ontology.
+			
+		This tag previously supported the completes trailing modifier. This modifier is now deprecated. Use the intersection_of tag instead.
+
+def:
+		The definition of the current term. There must be zero or one instances ofthis tag per term description. More than one definition for a term generatesa parse error. The value of this tag should be the quote enclosed definition text, followed by a dbxref list containing dbxrefs that describe the origin ofthis definition (see dbxref formatting for information on how dbxref listsare encoded). 
+				
+		An example of this tag would look like this:
+		def: "The breakdown into simpler components of (+)-camphor, a bicyclic monoterpene ketone." [UM-BBD:pathway "",http://umbbd.ahc.umn.edu/cam/cam_map.html ""]
+
+
+================================================================================
+go.geneanno
+
+The relation between genes and GO term.
+
+----------------------------------------------------------------------------------------------------
+DB_Object_ID:
+		A unique identifier in the database for the item being annotated.
+
+Qualifier:
+		This column is used for explicit relations between the entity and the GO term. An entry in this column is required in this file format.The default relations are part_of (for Cellular Component), involved_in (for Biological Process) or enables (for Molecular Function). Other values that may be present in this field are: colocalizes_with andcontributes_to. 
+		Any of these relations can be additionally qualified with 'NOT',
+		Example: NOT|involved_in
+
+Annotation Properties implication:
+		
+
+Assigned_by:
+		Attribution for the source of the annotation.
+		Examples: UniProtKB, AgBase
+
+GO ID:
+		The GO identifier for the term attributed to the DB_Object_ID.
+
+DB:
+		Database from which annotated entity has been taken.Example UniProtKB
+
+ECO evidence code:
+		This column is used for identifiers from the Evidence Code Ontology 
+		(http://evidenceontology.googlecode.com/svn/trunk/eco.obo)
+		 
+		Example: ECO:0000320
+
+With/From:
+		Additional identifier(s) to support annotations using certain evidence codes(including IEA, IPI, IGI, IMP, IC and ISS evidences).
+			Examples:
+				UniProtKB:O00341
+				InterPro:IPROO1878
+				RGD:123456
+				CHEBI:12345
+				Ensembl:ENSG00000136141
+				GO:0000001
+				EC:3.1.22.1
+
+DB:Reference Link:
+		The url indicated to DB:Reference
+
+DB:Reference:
+		A single reference cited to support an annotation. Where an annotation cannot reference a paper, this field will contain a GO_REF identifier. see http://www.geneontology.org/doc/GO.references for an explanation of the reference types used.
+		Examples: 
+			PMID:9058808
+			DOI:10.1046/j.1469-8137.2001.00150.x
+			GO_REF:0000002
+			GO_REF:0000020
+
+Interacting taxon ID:
+		This field is only present in the GPAD format files and has been separatedfrom the dual taxon ID format allowed in the gene association format files.
+		This taxon ID should inform on the other organism involved in a multi-species interaction. An interacting taxon identifier can only be used in conjunction with terms that have the biological process term 'GO:0051704; multi-organism process' or the cellular component term 'GO:0044215; other organism' as an ancestor. This taxon ID should inform on the other organism involved in the interaction. For further information please see: http://geneontology.org/page/go-annotation-conventions#interactionsExample: taxon:9606
+
+Annotation Properties:
+		evidence code,example :go_evidence=IEA
+
+Date:
+		The date of last annotation update in the format 'YYYYMMDD'
+
+Annotation Extension:
+		Contains cross references to other ontologies/databases that can be used toqualify or enhance the GO term applied in the annotation.The cross-reference is prefaced by an appropriate GO relationship; references to multiple ontologies can be entered as linked (comma separated)or independent (pipe separated) statements.
+		Examples: 
+			part_of(CL:0000084)
+			occurs_in(GO:0009536)
+			has_input(CHEBI:15422)
+			has_output(CHEBI:16761)
+			has_regulation_target(UniProtKB:P12345)|has_regulation_target(UniProtKB:P54321)
+			part_of(CL:0000017),part_of(MA:0000415)
+
+

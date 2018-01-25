@@ -1,0 +1,208 @@
+****************************************************************************************************
+HGNC
+
+HGNC is responsible for approving unique symbols and names for human loci, including protein coding genes, ncRNA genes and pseudogenes, to allow unambiguous scientific communication.
+
+================================================================================
+hgnc.gene
+
+Total Approved Symbols
+
+----------------------------------------------------------------------------------------------------
+ensembl_gene_id:
+		The Ensembl ID
+
+refseq_accession:
+		RefSeq nucleotide accession(s). 
+
+lsdb:
+		The name of the Locus Specific Mutation Database and URL for the gene separated by a | character, 
+		e.g. Mutations of the ATP-binding Cassette Transporter Retina|http://www.retina-international.org/files/sci-news/abcrmut.html
+
+intermediate_filament_db:
+		ID used to link to the Human Intermediate Filament Database
+		http://www.interfil.org/details.php?id=<ID>
+
+date_symbol_changed:
+		The date the gene symbol was last changed.
+
+uniprot_ids:
+		UniProt protein accession.
+
+location:
+		Cytogenetic location of the gene (e.g. 2q34).
+
+vega_id:
+		Vega gene ID. 
+
+omim_id:
+		Online Mendelian Inheritance in Man (OMIM) ID
+		https://www.omim.org/entry/<ID>
+
+pseudogene*org:
+		Pseudogene.org ID
+		http://tables.pseudogene.org/<ID>
+
+prev_name:
+		Gene names previously approved by the HGNC for this gene.
+
+homeodb:
+		Homeobox Database ID
+		http://homeodb.cbi.pku.edu.cn/gene_info.get?id=<ID>
+
+location_sortable:
+		Same as "location" but single digit chromosomes are prefixed with a 0 enabling them to be sorted in correct numerical order (e.g. 02q34).
+
+rna_central_ids:
+		
+
+orphanet:
+		Orphanet ID
+		http://www.orpha.net/consor/cgi-bin/OC_Exp.php?Lng=GB&Expert=<ID>
+
+date_name_changed:
+		The date the gene name was last changed.
+
+mgd_id:
+		Mouse genome informatics database ID.
+
+snornabase:
+		snoRNABase ID
+		https://www-snorna.biotoul.fr//plus.php?snoid=<ID>
+
+cd:
+		Symbol used within the Human Cell Differentiation Molecule database for the gene
+		http://www.hcdm.org/index.php?option=com_molecule&cdnumber=<SYMBOL>
+
+kznf_gene_catalog:
+		ID used to link to the Human KZNF Gene Catalog
+		http://znf.igb.uiuc.edu/human/action/exploreView?type=locus&id=<ID>
+
+gene_family:
+		Name given to a gene family or group the gene has been assigned to.
+
+name:
+		HGNC approved name for the gene.
+
+date_modified:
+		If applicable, the date the entry was modified by the HGNC
+
+lncrnadb:
+		lncRNA Database ID 
+		http://www.lncrnadb.org/<ID>
+
+hgnc_id:
+		A unique ID provided by the HGNC
+
+locus_type:
+		Specifies the type of locus described by the given entry:
+			
+			complex locus constituent - transcriptional unit that is part of a named complex locus
+			endogenous retrovirus - integrated retroviral elements that are transmitted through the germline (SO:0000100)
+			fragile site - a heritable locus on a chromosome that is prone to DNA breakage
+			gene with protein product - protein-coding genes (the protein may be predicted and of unknown function) (SO:0001217)
+			immunoglobulin gene - gene segments that undergo somatic recombination to form heavy or light chain immunoglobulin genes (SO:0000460)
+			immunoglobulin pseudogene - immunoglobulin gene segments that are inactivated due to frameshift mutations and/or stop codons in the open reading frame
+			phenotype only - mapped phenotypes (SO:0001500)
+			protocadherin - gene segments that constitute the three clustered protocadherins (alpha, beta and gamma)
+			pseudogene - genomic DNA sequences that are similar to protein-coding genes but do not encode a functional protein (SO:0000336)
+			readthrough - a naturally occurring transcript containing coding sequence from two or more genes that can also be transcribed individually
+			region - extents of genomic sequence that contain one or more genes, also applied to non-gene areas that do not fall into other types
+			RNA, cluster - region containing a cluster of small non-coding RNA genes
+			RNA, long non-coding - non-protein coding genes that encode long non-coding RNAs (lncRNAs); these are at least 200 nt and are represented by a processed trancript and/or at least 3 ESTs
+			RNA, micro - non-protein coding genes that encode microRNAs (miRNAs) (SO:0001265)
+			RNA, misc - non-protein coding genes that encode miscellaneous types of small ncRNAs
+			RNA, ribosomal - non-protein coding genes that encode ribosomal RNAs (rRNAs) (SO:0001637)
+			RNA, small nuclear - non-protein coding genes that encode small nuclear RNAs (snRNAs) (SO:0001268)
+			RNA, small nucleolar - non-protein coding genes that encode small nucleolar RNAs (snoRNAs) containing C/D or H/ACA box domains (SO:0001267)
+			RNA, small cytoplasmic - non-protein coding genes that encode small cytoplasmic RNAs (scRNAs) (SO:0001266)
+			RNA, transfer - non-protein coding genes that encode transfer RNAs (tRNAs) (SO:0001272)
+			RNA, vault - non-protein coding genes that encode vault RNAs (SO:0000404)
+			RNA, Y - non-protein coding genes that encode Y RNAs (SO:0000405)
+			T cell receptor gene - gene segments that undergo somatic recombination to form either alpha, beta, gamma or delta chain T cell receptor genes (SO:0000460)
+			T cell receptor pseudogene - T cell receptor gene segments that are inactivated due to frameshift mutations and/or stop codons in the open reading frame
+			transposable element - a segment of repetitive DNA that can move, or retrotranspose, to new sites within the genome (SO:0000101)
+			unknown - entries where the locus type is currently unknown
+			virus integration site - target sequence for the integration of viral DNA into the genome
+
+mamit-trnadb:
+		ID to link to the Mamit-tRNA database 
+		http://mamit-trna.u-strasbg.fr/mutations.asp?idAA=<ID>
+
+alias_name:
+		Other names used to refer to this gene
+
+locus_group:
+		A group name for a set of related locus types as defined by the HGNC (e.g. non-coding RNA).
+
+ena:
+		International Nucleotide Sequence Database Collaboration (GenBank, ENA and DDBJ) accession number(s). 
+
+merops:
+		ID used to link to the MEROPS peptidase database
+		https://merops.sanger.ac.uk/cgi-bin/pepsum?mid=<ID>
+
+ccds_id:
+		Consensus CDS ID.
+
+pubmed_id:
+		Pubmed and Europe Pubmed Central PMID(s).
+
+date_approved_reserved:
+		The date the entry was first approved.
+
+status:
+		Indicates whether the gene is classified as:
+			
+			Approved - these genes have HGNC-approved gene symbols
+			Entry withdrawn - these previously approved genes are no longer thought to exist
+			Symbol withdrawn - a previously approved record that has since been merged into a another record
+
+alias_symbol:
+		Other symbols used to refer to this gene
+
+mirbase:
+		miRBase ID
+		http://www.mirbase.org/cgi-bin/mirna_entry.pl?acc=<ID>
+
+symbol:
+		The HGNC approved gene symbol.
+
+iuphar:
+		The objectId used to link to the IUPHAR/BPS Guide to PHARMACOLOGY database. To link to IUPHAR/BPS Guide to PHARMACOLOGY database only use the number (only use 1 from the result objectId:1) in the example URL
+		http://www.guidetopharmacology.org/GRAC/ObjectDisplayForward?objectId=<ID>
+
+enzyme_id:
+		Enzyme entries have Enzyme Commission (EC) numbers associated with them that indicate the hierarchical functional classes to which they belong
+
+gene_family_id:
+		ID used to designate a gene family or group the gene has been assigned to.
+
+imgt:
+		Symbol used within international ImMunoGeneTics information system
+		http://www.imgt.org/IMGT_GENE-DB/GENElect?query=2+<SYMBOL>&species=Homo+sapiens
+
+entrez_id:
+		Entrez gene ID.
+
+horde_id:
+		Symbol used within HORDE for the gene
+		http://genome.weizmann.ac.il/horde/card/index/symbol:<SYMBOL>
+
+cosmic:
+		Symbol used within the Catalogue of somatic mutations in cancer for the gene.
+
+prev_symbol:
+		Symbols previously approved by the HGNC for this gene
+
+rgd_id:
+		Rat genome database gene ID.
+
+ucsc_id:
+		UCSC gene ID.
+
+bioparadigms_slc:
+		Symbol used to link to the SLC tables database at bioparadigms.org for the gene
+		http://slc.bioparadigms.org/protein?GeneName=<SYMBOL>
+
+

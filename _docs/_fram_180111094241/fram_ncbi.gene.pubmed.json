@@ -1,0 +1,8 @@
+{
+    "PubMed_ID": "the unique identifier in PubMed for a citation", 
+    "GeneID": "NCBI Gene ID",
+	"_db_description":"Gene integrates information from a wide range of species. A record may include nomenclature, Reference Sequences (RefSeqs), maps, pathways, variations, phenotypes, and links to genome-, phenotype-, and locus-specific resources worldwide.",
+	"_subdb_description":"the gene related publications",
+	"_db_name":"NCBI Gene",
+	"_subdb_name":"ncbi.gene.pubmed"	
+}

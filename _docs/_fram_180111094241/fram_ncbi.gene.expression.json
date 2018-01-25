@@ -1,0 +1,14 @@
+{
+    "full_rpkm": "read depth normalized by gene length and by sequencing depth of the sample", 
+    "source_name": "name of tissue or developmental stage for the sample", 
+    "project_desc": "NCBI Bioproject ID", 
+    "exp_total": "read depth times bases covered from this sample for this gene; unnormalized", 
+    "exp_rpkm": "full_rpkm rounded to three significant figures", 
+    "sra_id": "", 
+    "sample_id": "NCBI BioSample ID", 
+    "GeneID": "NCBI gene id",
+	"_db_description":"Gene integrates information from a wide range of species. A record may include nomenclature, Reference Sequences (RefSeqs), maps, pathways, variations, phenotypes, and links to genome-, phenotype-, and locus-specific resources worldwide.",
+	"_subdb_description":"The expression information of the gene in different tissues.",
+	"_db_name":"NCBI Gene",
+	"_subdb_name":"ncbi.gene.expression"
+}

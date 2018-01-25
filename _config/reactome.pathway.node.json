@@ -1,0 +1,13 @@
+https://reactome.org/download/current/diagram/*.graph.json
+
+{
+	"path_id":
+	"path_name"
+	"node_stId" : "R-HSA-51463",
+	"displayName" : "NCBP2 [nucleoplasm]",
+	"schemaClass":
+	"speciesID" : 48887,
+	"identifier" : "P52298",
+	"geneNames" : [ "NCBP2", "CBP20", "PIG55" ],
+	"parents" : [ 77088, 111682, 112164, 112159 ]
+}

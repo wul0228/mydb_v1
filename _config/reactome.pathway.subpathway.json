@@ -1,0 +1,5 @@
+#https://reactome.org/download/current/ReactomePathwaysRelation.txt
+{
+	"parent_path":"R-HSA-*" #只要人的,第一列
+	"child_path":"R-HSA-*" 
+}

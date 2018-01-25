@@ -1,0 +1,37 @@
+wget http://rest.kegg.jp/get/hsa00010/kgml
+
+{
+	"path_name": "path:hsa04976", 
+	"path_title": "Bile secretion", 
+	"path_relation": [
+		{ 
+			"entry1_id":33,		
+			"entry2_id":11,
+			"relation_type":"GErel",
+			"relation_subtype_name":"expression",
+			"relation_subtype_value":"-->", #relation_subtype_name值为compound时，值为复合物的entry id
+		}, 
+		{
+			
+		}
+
+	],
+	"path_entry":[
+		{
+			"entry_id":133,
+			"entry_type": "compound",
+			"entry_name":["cpd:C00187"],
+			"entry_reaction":[],
+		},
+	]
+	"path_reaction":[
+		{
+			"reaction_id":126,
+			"reaction_name":"",
+			"reaction_type":"",
+			"reaction_substrate":{},
+			"reaction_product":{}		
+		}
+	]
+    
+}
