@@ -17,21 +17,47 @@ options:
 
 -h, --help                 :give this help
 
--c, --collections          :show all collection in mydb
+-c, --collection           :show all collection in mydb
+
+-C, --Collection           :show  fields in a specified collection
+
+-t, --topic                :show all topic in mytopic
+
+-T, --Topic                :show  fields in a specified topic collection
 
 -i, --init     [modelname] :init a new model and create sub-model
 
 -u,--update    [modelname] :update a model in current directory,if modelname=all,update all
 
--d, --database [modelname] : query data record from this model
+-d, --database [modelname] : a sub model collection or a topic collection 
 
--f, --field    [fieldname] : look for specified database with this field
+-f, --field    [fieldname] : a field in one of collections
 
--v, --value    [fieldvalue]: look for all database with filed = value
+-v, --value    [fieldvalue]: the value of  the specified filed 
 
 -o,-- output   [outdirec]  : the  directory  path to store query result 
-    eg:
-        python manage.py  -d  ensembl  -f  gene_name  -v  TP53 -o  _result/
+
+combination use:
+eg:
+    python manage.py  -i  ncbi_gene
+
+    --- create a model named ncbi_gene
+eg:
+    python manage.py -u ncbi_gene/all
+
+    --- update the data of ncbi_gene/all model 
+eg:
+    python manage.py  -C/-T ncbi.gene.info/gene
+
+    --- show the description of field in ncbi.gene.info/gene
+eg:
+    python manage.py  -d  ncbi.gene.info  -f  GeneID  -v  1  -o  _result/ 
+
+    ---look for the doc in ncbi.gene.info when GeneID = 1,and store the query result in '_reslut/'
+eg:
+    python manage.py  -d  gene.format  -f  symbol  -v  TP53  -o  _result/ 
+
+    ---look for the doc in gene.format when symbol = TP53,and store the query result in '_reslut/'
 '''
 
 common_help = '''
