@@ -9,6 +9,7 @@ this model is set to generate standard doc file for sub model
 '''
 import os
 import json
+from config import *
 
 current_path = os.path.split(os.path.abspath(__file__))[0]
 
@@ -85,9 +86,65 @@ class doc(object):
                     readme.write('\t'*2 + val +'\n'*2)
                 readme.write('\n' )
 
+
+def scpPy():
+
+    models =  [name for name in listdir('./') if  not any([name.endswith(x) for x in ['.py','.pyc','.readme','.git']]) and not name.startswith('_')]
+
+    for model in models:
+
+        print model
+
+        model_path  = pjoin(current_path,model)
+
+        # files = [pjoin(model_path,filename) for filename in listdir(model_path) if filename.count('.')]
+
+        scp = 'scp -P 22022 -r  {}/*.*  wul@192.168.1.199:/home/wul/wul_work/project/mydb_v1/{}/'.format(model_path,model)
+
+        print scp 
+
+        os.popen(scp)
+
+        print 
+
+def gitPush():
+
+    models =  [name for name in listdir('./') if  not any([name.endswith(x) for x in ['.py','.pyc','.readme','.git']]) and not name.startswith('_')]
+
+    pys = [name for name in listdir('./') if name.endswith('.py')]
+
+    for py in pys:
+        gitadd = 'git add  {}'.format(py)
+        gitcom = 'git commit -m \'alter {} @{}\' '.format(py,today)
+        gitpush = 'git push origin master'
+
+        for command in [gitadd,gitcom,gitpush]:
+            print command
+            os.popen(command)
+        print 
+
+    for model in models:
+
+        print model
+
+        model_path  = pjoin(current_path,model)
+        # files = [pjoin(model_path,filename) for filename in listdir(model_path) if filename.count('.')]
+
+        gitadd = 'git add  {}/*.*  '.format(model_path)
+        gitcom = 'git commit -m \'alter {} py ,log,readme\''.format(model)
+        gitpush = 'git push origin master'
+
+        for command in [gitadd,gitcom,gitpush]:
+            print command
+            os.popen(command)
+        print 
+
 def main():
-    man = doc()
-    man.dbDoc()
+    # man = doc()
+    # man.dbDoc()
+    # scpPy()
+    gitPush()
+
 
 if __name__ == '__main__':
     main()
