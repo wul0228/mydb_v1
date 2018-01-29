@@ -1061,9 +1061,9 @@ def constance(db):
     return dic.get(db)
 
 def main():
-
+    pass
     # print neutrCharge('c1ccccc1CC([NH3+])C(=O)[O-]')
-    colFram('mydb_v1')
+    # colFram('mydb_v1')
     # ncbi_seq_ftp_infos = {
     # 'host' : 'ftp.ncbi.nlm.nih.gov' ,
     # 'user':'anonymous',
