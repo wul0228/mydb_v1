@@ -189,6 +189,10 @@ class manager(object):
 
     def sendEmail(self,email_info):
 
+        '''
+        this function is set to send an email by script
+        emial_info ~ some infos for sending email 
+        '''
         message = MIMEText(email_info.get('text'), 'plain', 'utf-8')
         message['From'] = Header(email_info.get('message_from'), 'utf-8')
         message['To'] =  Header(email_info.get('message_to'), 'utf-8')
@@ -220,10 +224,16 @@ class query(object):
 
         db  = conn.get_database('mydb_v1')
 
+        topic = conn.get_database('mytopic_v1')
+
         self.db = db
 
-    def showColInDB(self):
+        self.topic = topic
 
+    def showColInDB(self):
+        '''
+        this function is set to show existed collction in mongdb
+        '''
         col_names =  self.db.collection_names() 
 
         col_names.sort()
@@ -231,12 +241,80 @@ class query(object):
         for i ,colname in enumerate(col_names):
 
             index = i + 1
+
             print index,' '*(5-len(str(index))),colname
 
-    def showColField(self):
-        pass
+    def showColField(self,colbase):
+        '''
+        this function is  set to show  fields in a specified collection
+        '''
+        frams = './_docs/_fram_180111094241/'
 
+        model_fields = dict()
 
+        exclude_fields = ['_db_name','_subdb_name','_db_description','_subdb_description']
+
+        first = True
+
+        for filename in listdir(frams):
+
+            if filename.count(colbase):
+
+                readme = eval(open(pjoin(frams,filename)).read())
+
+                model_name = filename.split('fram_')[1].split('.json')[0].strip()
+
+                _db_name = readme.pop('_db_name')
+                _db_description = readme.pop('_db_description').replace('||||','\n'+'\t'*2).replace('////','\n' + '\t'*3).replace('----','\n' + '\t'*4)
+
+                if first:
+                    print '+'*100
+                    print _db_name,'\n'*2
+                    print _db_description,'\n'
+                    first = False
+
+                print '='*80
+                _subdb_name = readme.pop('_subdb_name').replace('||||','\n'+'\t'*2).replace('////','\n' + '\t'*3).replace('----','\n' + '\t'*4)
+                _subdb_description = readme.pop('_subdb_description').replace('||||','\n'+'\t'*2).replace('////','\n' + '\t'*3).replace('----','\n' + '\t'*4)
+                print _subdb_name,'\n'*2
+                print _subdb_description,'\n'
+
+                print '-'*50
+                fields = sorted(readme.keys())
+                for index,f  in  enumerate(fields):
+                    print index+1,f,' : '
+                    print '\t'*2,readme.get(f).replace('||||','\n'+'\t'*2).replace('////','\n' + '\t'*3).replace('----','\n' + '\t'*4)
+                    print 
+
+    def showTopicInDB(self):
+
+        '''
+        this function is set to show all topic collction in mongdb
+        '''
+        col_names =  [name for name in self.topic.collection_names()  if name.count('.format')]
+
+        col_names.sort()
+
+        for i ,colname in enumerate(col_names):
+
+            index = i + 1
+
+            print index,' '*(5-len(str(index))),colname
+
+    def showTopicField(self,topicbase):
+        '''
+        this function is set to show all filed and it's description of a specified topic collction in mongdb
+        '''
+        topic_docs = './_topic/_docs/'
+
+        for filename in listdir(topic_docs):
+
+            if filename.count(topicbase):
+
+                f = open((pjoin(topic_docs,filename))).read()
+
+                print f
+ 
     def selectFromModel(self,modelname,field,value,outputdir):
 
         # default selcet from the newest edition
@@ -264,11 +342,55 @@ class query(object):
 
         print 'allfind ',n
 
+    def selcetFromTopic(self,topicname,value,outputdir,field=None):
+
+        key_db = {
+        'gene':{'field':'symbol','name':'gene.format'}
+        }
+
+        for key,val in key_db.items():
+
+            if topicname.count(key):
+
+                field = val.get('field')
+                topicname = val.get('name')
+                break
+
+        # default selcet from the newest edition
+        createDir(outputdir)
+
+        storedir = pjoin(outputdir,'{}_{}_{}'.format(topicname,field,value))
+
+        col = self.topic.get_collection(topicname)
+
+        docs = col.find({field:value})
+
+        n = 0 
+
+        for doc in docs:
+
+            if doc:
+                createDir(storedir)
+
+            doc.pop('_id')
+
+            # print '+'*50
+            
+            # pprint.pprint(doc)
+
+            with open(pjoin(storedir,'{}.json'.format(n)),'w') as wf:
+
+                json.dump(doc,wf,indent=8)
+
+                n += 1
+
+        print 'allfind ',n
+
 def main():
     
     try:
 
-        (opts,args) = getopt.getopt(sys.argv[1:],"hci:u:d:f:v:o:",['--help','--collections','--init=','--update=','--database=','--field=','--value=','--output='])
+        (opts,args) = getopt.getopt(sys.argv[1:],"hcC:tT:i:u:d:f:v:o:",['--help','--collection','--Collection','--topic','--Topic==','--init=','--update=','--database=','--field=','--value=','--output=',])
 
         (base,field,val,out) = ("","","","")
 
@@ -289,6 +411,19 @@ def main():
                 man = query()
                 man.showColInDB()
 
+            elif op in ('-C','--Collection'):
+                man = query()
+                man.showColField(value)
+
+            elif op in ('-t','--topic'):
+                topic = value
+                man = query()
+                man.showTopicInDB()
+
+            elif op in ('-T','--Topic'):
+                man = query()
+                man.showTopicField(value)
+
             elif op in ('-d','--database'):
                 base = value
 
@@ -301,10 +436,13 @@ def main():
             elif op in ('-o','--output'):
                 out = value
 
-            if all([bool(i) for i in [base,field,val,out]]):
+            if all([bool(i) for i in [base,val,out]]):
             # if base and field and val and out:
                 man = query()
-                man.selectFromModel(base,field,val,out)
+                if base.split('.')[0].strip() in ['gene','pathway','variant']:
+                    man.selcetFromTopic(base,val,out,field)
+                else:
+                    man.selectFromModel(base,field,val,out)
 
     except getopt.GetoptError:
 
