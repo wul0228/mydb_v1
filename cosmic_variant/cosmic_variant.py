@@ -11,6 +11,7 @@ sys.path.append('../')
 sys.setdefaultencoding = ('utf-8')
 from share import *
 from config import *  
+import paramiko
 
 __all__ = ['downloadData','extractData','updateData','selectData']
 
@@ -24,7 +25,8 @@ log_path = pjoin(cosmic_variant_model,'cosmic_variant.log')
 
 # main code
 def downloadData(redownload=True):
-
+    
+    sf = paramiko.Transport(('sftp-cancer.sanger.ac.uk',22))
     #function introduction
     #args:
     
