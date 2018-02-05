@@ -24,10 +24,14 @@ model_name = psplit(os.path.abspath(__file__))[1]
 log_path = pjoin(cosmic_variant_model,'cosmic_variant.log')
 
 # main code
+
 def downloadData(redownload=True):
-    
-    sf = paramiko.Transport(('sftp-cancer.sanger.ac.uk',22))
-    #function introduction
+
+    trans = paramiko.Transport(('sftp-cancer.sanger.ac.uk',22))
+    trans.connect(username='201421107002@stu.hebut.edu.cn',password='lifeifei')
+    sftp = paramiko.SFTPClient.from_transport(trans)
+
+   #function introduction
     #args:
     
     return
@@ -368,6 +372,77 @@ class dbFilter(object):
         super(dbFilter,self).__init__()
         pass
 
+
+class PySFTP(object):
+
+    def __init__(self):
+
+        print('Create a SFTP Deload Project!')
+
+    def connectSFTP(self,remotename,remoteport,loginname,loginpassword):
+
+        try:
+            sftp = paramiko.Transport(remotename,remoteport)
+            print('connect success!')
+
+        except Exception as e:
+            print('connect failed,reasons are as follows:',e)
+            return (0,'connect failed!')
+
+        else:
+            try:
+                sftp.connect(username = loginname,password = loginpassword)
+                print('login success!')
+
+            except Exception as e:
+                print('connect failed,reasons are as follows:',e)
+                return (0,'login failed!')
+            else:
+                return (1,sftp)
+
+    def download(self,remotename,remoteport,loginname,loginpassword,remoteaddress,localaddress):
+
+        sftp = self.connectSFTP(remotename,remoteport,loginname,loginpassword)
+
+        if sftp[0] != 1:
+            print(sftp[1])
+            sys.exit()
+
+        sftp = paramiko.SFTPClient.from_transport(sftp[1])
+
+        filelist = sftp.listdir(remoteaddress)
+
+        filelist = filelist[:2]#测试时仅下载了2个文件
+
+        print('begin downloading!')
+
+        for i in filelist:
+            try:              
+                start = time.clock()
+                sftp.get(remoteaddress+'/'+i,localaddress+'\\'+i)
+                end = time.clock()
+                print('success download %s,use time %fs' % (i,(end - start)))               
+            except Exception as e:
+                print('failed download %s,reason are as follows:' % i,e)
+                with open(r'C:\Users\Neil\Desktop\Test\time.log','a') as f:
+                    f.write('failed download %s,reason are as follows:' % i,e)
+                continue #下载出错继续进行下一步
+            else:
+                with open(r'C:\Users\Neil\Desktop\Test\time.log','a') as f:
+                    f.write('success download %s\n' % i)
+
+    # def main():
+        # sftp = PySFTP()
+        # sftp.download(remotename = 'SFTP的host地址',
+        #                           remoteport=21,     #SFTP的默认端口号是21
+        #                           loginname = '用户名',
+        #                           loginpassword = '密码',
+        #                           remoteaddress='下载文件所在的路径',
+        #                           localaddress = r'需要下载到的地址路径') 
+
+if __name__ == '__main__':
+    main()
+
 def main():
 
     modelhelp = 'help document'
@@ -379,4 +454,17 @@ def main():
 if __name__ == '__main__':
     # main()
 
-    extractData()
+    # extractData()
+    sftp = PySFTP()
+    sftp.download(remotename = 'sftp-cancer.sanger.ac.uk',
+                                  remoteport=21,     #SFTP的默认端口号是21
+                                  loginname = '201421107002@stu.hebut.edu.cn',
+                                  loginpassword = 'lifeifei',
+                                  remoteaddress='/files/grch37/cosmic/v83/',
+                                  localaddress = './dataraw/')
+  # sftp.download(remotename = 'SFTP的host地址',
+    #                               remoteport=21,     #SFTP的默认端口号是21
+    #                               loginname = '用户名',
+    #                               loginpassword = '密码',
+    #                               remoteaddress='下载文件所在的路径',
+    #                               localaddress = r'需要下载到的地址路径') 
