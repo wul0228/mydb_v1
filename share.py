@@ -219,7 +219,11 @@ def  ftpDownload(ftp,filename,savefilename,rawdir,remoteabsfilepath):
     '''
     this function is to download specified file from ftp site
     '''
-    bufsize=1024 
+    # bufsize=1024 
+    bufsize=8192 
+    # bufsize=16384 
+    # bufsize=24576
+    # bufsize=32768 
 
     save_file_path =pjoin(rawdir,savefilename)
 
@@ -1064,19 +1068,26 @@ def main():
     pass
     # print neutrCharge('c1ccccc1CC([NH3+])C(=O)[O-]')
     # colFram('mydb_v1')
-    # ncbi_seq_ftp_infos = {
+
+    # ncbi_gene_ftp_infos = {
     # 'host' : 'ftp.ncbi.nlm.nih.gov' ,
     # 'user':'anonymous',
     # 'passwd' : '',
-    # 'logdir' : '/blast/db/FASTA/'
+    # 'logdir' : '/gene/DATA/'
     # }
-    # ftp = connectFTP(**ncbi_seq_ftp_infos)
-    # filename = 'nr.gz'
-    # savefilename = 'nr.gz'
+    # ftp = connectFTP(**ncbi_gene_ftp_infos)
+    # filename = 'gene_info.gz'
+    # savefilename = 'gene_info_8192.gz'
     # rawdir = '/home/user/'
-    # remoteabsfilepath = '/blast/db/FASTA/nr.gz'
+    # remoteabsfilepath = '/gene/DATA/gene_info.gz'
 
+    # start = time.clock()
+    # print start
     # ftpDownload(ftp,filename,savefilename,rawdir,remoteabsfilepath)
+    # end = time.clock()
+    # print end
+    # print end-start
+
 if __name__ == '__main__' :
 
     main()
@@ -1085,3 +1096,5 @@ if __name__ == '__main__' :
     # man.colInstance()
     # 
     # print 
+
+
