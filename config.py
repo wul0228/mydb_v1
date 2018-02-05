@@ -13,10 +13,14 @@ from time import sleep
 from lxml import etree as et
 from xmltodict import parse
 from datetime import datetime
-from selenium import webdriver
 from pymongo import MongoClient
 from bs4 import BeautifulSoup as bs
 from multiprocessing.dummy import Pool as ThreadPool
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.common.exceptions import WebDriverException
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 #+++++++++++++++++++++++++ abbreviations  +++++++++++++++++++++++++++++++++#
 listdir = os.listdir
@@ -36,6 +40,9 @@ today = datetime.now().strftime('%y%m%d%H%M%S')
     
 headers = {'User-Agent':'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Ubuntu Chromium/37.0.2062.120 Chrome/37.0.2062.120 Safari/537.36'}
 
+annovar_bin = '/home/user/software/annovar/'
+
+dbsnpfilepath = '/home/user/software/annovar/humandb/hg19_snp138.txt'
 #~~~~~~~~~~~~~~~~~~~NCBI gene~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 ncbi_gene_ftp_infos = {
     'host' : 'ftp.ncbi.nlm.nih.gov' ,
@@ -195,6 +202,17 @@ igsr_variant_ftp_infos =  {
 'passwd' : '',
 'logdir' : '/vol1/ftp/release/20130502/'
 }
+#~~~~~~~~~~~~~~~~~~~pharmGKB varient~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+pharmgkb_rsid_ftp_infos = {
+    'host':'ftp.ncbi.nih.gov',
+    'user':'anonymous',
+    'passwd' : '',
+    'logdir' : '/snp/organisms/human_9606/database/data/organism_data/',
+}
+pharmgkb_rsid_filename = 'RsMergeArch.bcp.gz'
+pharmgkb_download_web = 'https://www.pharmgkb.org/downloads'
+pharmgkb_sign_page = 'https://www.pharmgkb.org/user/login?nextUrl=/'
+
 #~~~~~~~~~~~~~~~~~~~disgenet~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 disgenet_download_web = 'http://www.disgenet.org/web/DisGeNET/menu/downloads#gdascurated'
