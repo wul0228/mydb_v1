@@ -128,7 +128,6 @@ def gitPush():
         print model
 
         model_path  = pjoin(current_path,model)
-        # files = [pjoin(model_path,filename) for filename in listdir(model_path) if filename.count('.')]
 
         gitadd = 'git add  {}/*.*  '.format(model_path)
         gitcom = 'git commit -m \'alter {} py ,log,readme\''.format(model)
@@ -142,8 +141,8 @@ def gitPush():
 def main():
     # man = doc()
     # man.dbDoc()
-    # scpPy()
-    gitPush()
+    scpPy()
+    #gitPush()
 
 
 if __name__ == '__main__':
