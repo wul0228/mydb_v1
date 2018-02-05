@@ -282,7 +282,8 @@ class query(object):
                 print '-'*50
                 fields = sorted(readme.keys())
                 for index,f  in  enumerate(fields):
-                    print index+1,f,' : '
+                    # print index+1,f,' : '
+                    print f
                     print '\t'*2,readme.get(f).replace('||||','\n'+'\t'*2).replace('////','\n' + '\t'*3).replace('----','\n' + '\t'*4)
                     print 
 
@@ -386,6 +387,52 @@ class query(object):
 
         print 'allfind ',n
 
+    def geneAnnotation(self):
+
+        anno_json = dict()
+
+        anno_genes = open('./_result/_anno_genes.txt')
+
+        anno_result = open('./_result/_anno_result.txt','w')
+
+        for index,line in enumerate(anno_genes):
+
+            gene_symbol = line.strip()
+
+            col = self.topic.get_collection('gene.format')
+
+            doc = col.find_one({'symbol':gene_symbol})
+
+            if doc:
+
+                for key in ['_id','symbol','function','basicinfo','variant','symbol_ids','expression','phenotype','pathway','CGC']:
+
+                    if key in doc:
+                        doc.pop(key)
+
+                if doc:
+
+                    anno_json[gene_symbol] = doc
+
+                    doc = json.dumps(doc)
+
+                    anno_result.write(gene_symbol + '\t' + doc + '\n')
+
+                    anno_result.flush() 
+
+                else:
+
+                    print gene_symbol,'no disease and drug'
+
+            else:
+                
+                print gene_symbol,'no record'
+
+        print len(anno_json)
+
+        with open('./_result/_anno_result.json','w') as wf:
+            json.dump(anno_json,wf,indent=8)
+
 def main():
     
     try:
@@ -451,3 +498,6 @@ def main():
 if __name__ == '__main__':
 
     main()
+    # man = query()
+    # man.geneAnnotation()
+
