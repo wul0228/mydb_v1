@@ -10,6 +10,7 @@ this model is set to generate standard doc file for sub model
 import os
 import json
 from config import *
+from share import *
 
 current_path = os.path.split(os.path.abspath(__file__))[0]
 
@@ -87,6 +88,9 @@ class doc(object):
                 readme.write('\n' )
 
 
+
+         
+
 def scpPy():
 
     models =  [name for name in listdir('./') if  not any([name.endswith(x) for x in ['.py','.pyc','.readme','.git']]) and not name.startswith('_')]
@@ -136,13 +140,14 @@ def gitPush():
         for command in [gitadd,gitcom,gitpush]:
             print command
             os.popen(command)
+
         print 
 
 def main():
     # man = doc()
     # man.dbDoc()
-    scpPy()
-    #gitPush()
+    # scpPy()
+    gitPush()
 
 
 if __name__ == '__main__':
