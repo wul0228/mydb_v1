@@ -32,12 +32,12 @@ def downloadData(redownload=False):
     '''
     if  not redownload:
 
-        (choice,existFile) = lookforExisted(clinvar_variant_raw,'variant')
+        (choice,existFile) = lookforExisted(pharmgkb_variant_raw,'variants')
 
         if choice != 'y':
             return
 
-    if redownload or not existgoFile or  choice == 'y':
+    if redownload or not existFile or  choice == 'y':
 
         process = parser(today)
 
@@ -71,29 +71,31 @@ def extractData(filepaths,date):
     filepaths -- all filepaths to be parserd
     date -- the date of  data download
     '''
-    # rawdir = pslit(filepaths[0])[0].strip()
     # # 1. distribute filepaths for parser
-    variant_ca_basic_paths = [path for path in filepaths if psplit(path)[1].strip().startswith('variants')]
+    rawdir = psplit(filepaths[0])[0]
 
-    variant_ca_mutid_paths = [path for path in filepaths if psplit(path)[1].strip().startswith('RsMergeArch')]
+    # variant_ca_basic_paths = [path for path in filepaths if psplit(path)[1].strip().startswith('variants')]
+
+    # variant_ca_mutid_paths = [path for path in filepaths if psplit(path)[1].strip().startswith('RsMergeArch')]
     
-    # # 2. parser filepaths step by step
+    # # # 2. parser filepaths step by step
     process = parser(date)
 
-    # # --------------------------------pharmGKB.variant.info---------------------------------------------------
-    ca_links = process.variant_ca_basic(variant_ca_basic_paths)
+    # # # --------------------------------pharmGKB.variant.ca---------------------------------------------------
+    # ca_links = process.variant_ca_basic(variant_ca_basic_paths)
 
-    process.variant_ca_mutid(variant_ca_mutid_paths)
+    # process.variant_ca_mutid(variant_ca_mutid_paths)
 
-    ca_readnows = process.getCA(ca_links,rawdir)
+    # ca_readnows = process.getCA(ca_links,rawdir)
 
-    ca_readnows_info = process.getRead(ca_readnows,rawdir)
+    # ca_readnows_info = process.getRead(ca_readnows,rawdir)
 
-    # ca_readnows_info = json.load(open('./ca_readnow_info.json'))
+    # # ca_readnows_info = json.load(open('/home/user/project/dbproject/mydb_v1/pharmgkb_variant/dataraw/variants_180205132245/ca_readnow_info.json'))
 
-    process.variant_ca_anno(ca_readnows_info)
-
-    # # ----------------------------------------------------------------------------------------------
+    # process.variant_ca_anno(ca_readnows_info)
+    # # # --------------------------------pharmGKB.variant.info---------------------------------------------------
+    process.variant_info(rawdir)
+    # ----------------------------------------------------------------------------------------------
     # 3. bkup all collections
     colhead = 'pharmgkb.variant'
 
@@ -241,6 +243,219 @@ class parser(object):
 
         return aset
 
+    def view(self,html=None):
+
+        # html = open('/home/user/project/dbproject/mydb_v1/pharmgkb_variant/dataraw/variants_180205132245/Overview_PA166155331.html').read()
+        # html = open('./overview.html').read()
+
+        aset = dict()
+
+        soup = bs(html,'lxml') 
+
+        facts_container = soup.find(name='div',attrs={'class':'facts-container'})
+
+        if not facts_container:
+            return  # PA166157920 ,error 404
+
+        #--------------------------------------------------------------------------------------------------
+        #Primary Locus,Alternate Locations
+        compact_facts =facts_container.findAll(name='div',attrs={'class':'fact-section compact-facts inline-facts'})  
+
+        for compact in compact_facts:
+
+            header = compact.find(attrs={'class':'fact-section-header'}).text.strip()
+
+            if header == 'Primary Locus':
+
+                aset[header] = dict()
+
+                facts = compact.findAll(name='div',attrs={'class':'fact'})
+
+                for fact in facts:
+
+                    fact_label = fact.find(attrs={'class':'fact-label'}).text.strip()
+
+                    if fact_label == 'Alleles':
+                        fact_content = fact.findAll(name='li')
+                        fact_vals = list()
+                        for li in fact_content:
+                            val =  ''.join([text for text in li.stripped_strings])
+                            fact_vals.append(val)
+
+                    else:
+                        fact_content = fact.find(attrs={'class':'fact-content'})
+
+                        fact_vals = [text for text in fact_content.stripped_strings]
+
+                        if fact_vals:fact_vals = fact_vals[0]
+
+                        # if fact_label in ['Name','Location','Sequence','Source']:
+
+                            # fact_vals =fact_vals[0]
+
+                    aset[header][fact_label] = fact_vals
+
+            elif header == 'Alternate Locations':
+
+                aset[header] =  list()
+
+                sequence_locations = compact.find(name='div',attrs={'class':'sequence-location-list'}).findAll(name='div')
+
+                for div in sequence_locations:
+
+                    adiv = dict()
+
+                    facts = div.findAll(name='div',attrs={'class':'fact'})
+
+                    for fact in facts:
+
+                        fact_label = fact.find(attrs={'class':'fact-label'}).text.strip()
+
+                        if fact_label == 'Alleles':
+                            fact_content = fact.findAll(name='li')
+                            fact_vals = list()
+                            for li in fact_content:
+                                val =  ''.join([text for text in li.stripped_strings])
+                                fact_vals.append(val)
+
+                        else:
+                            fact_content = fact.find(attrs={'class':'fact-content'})
+
+                            fact_vals = [text for text in fact_content.stripped_strings]
+
+                            if fact_label in ['Name','Location']:
+
+                                fact_vals =fact_vals[0]
+
+                        adiv[fact_label]  = fact_vals
+                    if adiv:
+                        aset[header].append(adiv)
+
+            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            #generate assembly che ref and alt
+            name = aset.get('Primary Locus',{}).get('Name')
+            Alleles = aset.get('Primary Locus',{}).get('Alleles')
+
+            if not name or not Alleles or not name.count('GRCh37'): # can't generate nutation id
+                return 
+
+            Assembly = name.split(']',1)[0].split('[',1)[1].strip()
+            chrom = name.split(']',1)[1].split(':',1)[0].strip()
+            pos = name.split(':',1)[1].strip()
+
+            if pos.count('_'):
+                pos_start = pos.split('_')[0].strip()
+                pos_end = pos.split('_')[1].strip()
+            else:
+                pos_start = pos
+                pos_end = pos
+
+            aset['Assembly'] = Assembly
+            aset['chr'] = chrom
+            aset['position'] = pos
+
+        if Alleles:
+            refs = [alle.split('>')[0].strip() for alle in Alleles]
+            alts = [alle.split('>')[1].strip() for alle in Alleles]
+            alts.sort()
+
+            if len(list(set(refs))) != 1:
+                print '!!!!!!!!! the same position have different base'
+
+            ref = refs[0]
+
+            if ref.count('(') and ref.count(')'):
+                ref = ref.split(')',1)[0].replace('(','').strip() + '[{}]'.format(ref.split(')')[1].strip())
+
+            if all([a.count('(') for a  in alts]):
+                alt = alts[0].split(')',1)[0].replace('(','').strip()  + ''.join(['[{}]'.format(copys) for copys in sorted([a.split(')')[1].strip() for a in alts])])
+            else:
+                alt = '/'.join(alts)
+           
+            aset['ref'] = ref
+            aset['alt'] = alt
+
+            if name and Alleles:
+                mutation_id  = '{}:{}:{}:{}:{}'.format(chrom,pos_start,pos_end,ref,alt)
+
+            else:
+                mutation_id = ''
+            
+            aset['mutation_id']  =mutation_id
+
+        #--------------------------------------------------------------------------------------------------
+        # Accession ID,Associated Genes,Type,Class
+        half_width_facts =facts_container.find(name='div',attrs={'class':'fact-section half-width-facts'}) 
+
+        basic_info = half_width_facts.findAll(name='div',attrs={'class':'fact'})
+
+        for div in basic_info:
+
+            fact_label = div.find(attrs={'class':'fact-label'}).text.strip()
+            fact_content = div.find(attrs={'class':'fact-content'})
+            fact_vals = [text for text in fact_content.stripped_strings]
+
+            if fact_label in ['Class','Type','Accession ID'] and fact_vals :
+                fact_vals = fact_vals[0]
+
+            aset[fact_label] = fact_vals
+
+        aset['pharmgkb_VariantID'] = aset.pop('Accession ID')
+        
+        #--------------------------------------------------------------------------------------------------
+        #'Alternate Names',Allele Frequencies
+        fact_sections = facts_container.findAll(attrs={'class':'fact-section'})
+
+        for fact_section in fact_sections:
+
+            header = fact_section.find(attrs={'class':'fact-section-header'}).text.strip()
+            if header == 'Alternate Names':
+                lis = fact_section.findAll(name='li')
+                aset['Alternate Names'] = [li.text.strip() for li in lis]
+
+            #--------------------------------------------------------------------------------------------------
+            elif header == 'Allele Frequencies':
+
+                 data_source = ' '.join([text.strip() for text in  fact_section.find(name='p').stripped_strings])
+
+                 freqTables = facts_container.findAll(attrs={'class':'freqTable'})
+
+                 for table in freqTables:
+
+                    thead = table.find(name='thead')
+                    populations_type = thead.find(name='th').text.strip()
+                    allele_headers = [th.text.strip() for th in thead.findAll(name='th',attrs={'class':'freqTable__alleleHeader'})]
+
+                    if populations_type not in aset:
+                        aset[populations_type] = list()
+
+                    tbody = table.find(name='tbody')
+                    trs = tbody.findAll(name='tr')
+                    
+                    for tr in trs:
+
+                        atr = dict()
+
+                        abbrs =[text for text in  tr.find(name='td').stripped_strings]
+
+                        n = abbrs[2]
+                        abbr = abbrs[0]
+                        abbr_title = tr.find(name='abbr')['title'].strip()
+                        allele_cells  =[td.text.strip() for td in tr.findAll(name='td',attrs={'class':'freqTable__alleleCell'})]
+                        # print populations_type,allele_headers
+                        # print abbr,'\t',abbr_title,'\t',n,'\t',allele_cells
+                        atr['population_abbr'] = abbr
+                        atr['population'] = abbr_title
+                        atr['n'] = n
+
+                        atr.update(dict([(key,val) for key,val in zip(allele_headers,allele_cells) ]))
+
+                        aset[populations_type].append(atr)
+
+        # pprint.pprint(aset)
+
+        return aset
+
     def getCA(self,ca_links=None,rawdir=None):
 
         ca_readnows_path = pjoin(rawdir,'ca_readnows.json')
@@ -306,7 +521,7 @@ class parser(object):
         driver.get('https://www.pharmgkb.org/downloads')
 
         try:
-            element = WebDriverWait(driver,10,0.5).until(EC.presence_of_all_elements_located((By.TAG_NAME,'button')))
+            element = WebDriverWait(driver,30,0.5).until(EC.presence_of_all_elements_located((By.TAG_NAME,'button')))
             print '...all button load !'
 
         finally:
@@ -315,23 +530,28 @@ class parser(object):
                 if button.text == 'variants.zip':
                     button.click()
                     sleep(5)
+                    print '...variants.zip download !'
                     break
 
-            print '...variants.zip download !'
-
-            # unzip file
+                
+            # unzip variants.zip file
             old_filepath = pjoin(rawdir,'variants.zip')
             new_filedirpath = pjoin(rawdir,'variants_{}'.format(today))
             createDir(new_filedirpath)
 
             unzip = 'unzip {} -d {}'.format(old_filepath,new_filedirpath)
             os.popen(unzip)
+
+            mv = 'mv {}  {}'.format(old_filepath,new_filedirpath)
+            os.popen(mv)
+            
             print '...unzip file in  {} '.format(new_filedirpath)
 
             driver.close()
 
         # 2. ------------------------------------------------- RsMergeArch.bcp.gz------------------------------------------------------------------------------------------
         ftp = connectFTP(**pharmgkb_rsid_ftp_infos)
+
         print '...connectFTP pharmgkb_rsid_ftp !'
 
         mt =  ftp.sendcmd('MDTM {}'.format(pharmgkb_rsid_filename)).replace(' ','')
@@ -342,8 +562,14 @@ class parser(object):
 
         savefilepath = pjoin(rawdir,savefilename)
 
-        ftpDownload(ftp,pharmgkb_rsid_filename,savefilename,new_filedirpath,remoteabsfilepath)
-        print '...RsMergeArch.bcp.gz download !'
+        existed = False
+        while not existed:
+            try:
+                ftpDownload(ftp,pharmgkb_rsid_filename,savefilename,new_filedirpath,remoteabsfilepath)
+                existed = True
+                print '...RsMergeArch.bcp.gz download !'
+            except:
+                pass
 
         gunzip = 'gunzip {}'.format(savefilepath)
 
@@ -407,9 +633,7 @@ class parser(object):
                     left_elements = WebDriverWait(driver,30,0.5).until(EC.presence_of_all_elements_located((By.CLASS_NAME,'fact-content')))
                     right_elements = WebDriverWait(driver,30,0.5).until(EC.presence_of_all_elements_located((By.CLASS_NAME,'phenotype')))
                     bottle_elements = WebDriverWait(driver,30,0.5).until(EC.presence_of_all_elements_located((By.CLASS_NAME,'variant-annotations')))
-
                 finally:
-
                     web = driver.page_source
 
                     storepath = pjoin(pharmgkb_variant_store,'./web_{}_{}.html'.format(var_id,anno_id))
@@ -431,6 +655,69 @@ class parser(object):
         driver.close()
 
         return ca_readnows_info
+
+    def getOverview(self,links,rawdir):
+
+        driver = webdriver.Chrome()
+
+        n = 1
+
+        still = True
+
+        while still:
+
+            try:
+
+                for var_id,link in links.items():
+
+                    print n,var_id,link
+
+                    driver.get(link)
+
+                    try:
+                        try:
+                            elements = WebDriverWait(driver,3,0.5).until(EC.presence_of_all_elements_located((By.CLASS_NAME,'fact-content')))
+                        except:
+                            pass
+                        try:
+                            # Genes visiblity
+                            elements = WebDriverWait(driver,1,0.5).until(EC.presence_of_all_elements_located((By.CLASS_NAME,'list-inline-item')))
+                        except:
+                            pass
+                        try:
+                            elements= WebDriverWait(driver,1,0.5).until(EC.presence_of_element_located((By.CLASS_NAME,'sequence-location-list')))
+                        except:
+                            pass
+                        try:
+                            elements = WebDriverWait(driver,1,0.5).until(EC.presence_of_all_elements_located((By.CLASS_NAME,'freqTable')))
+                        except:
+                            pass
+                    finally:
+
+                        web = driver.page_source
+
+                        soup = bs(web,'lxml')
+
+                        html_savepath = pjoin(rawdir,'Overview_{}.html'.format(var_id))
+
+                        with open(html_savepath,'w') as wf:
+
+                            wf.write(soup.prettify().encode('utf-8'))
+
+                        links.pop(var_id)
+
+                        n += 1
+
+                still = False
+
+                sleep(1)
+
+            except:
+
+                pass
+
+        driver.close()
+
     def variant_ca_basic(self,filepaths):
         '''
         this function is set parser variant_info 
@@ -540,7 +827,7 @@ class parser(object):
         docs = info_col.find({}).skip(1)
 
         n = 0
-        rs_ids = open('./rs_ids.txt','w')
+        # rs_ids = open('./rs_ids.txt','w')
 
         for doc in docs:
 
@@ -558,7 +845,7 @@ class parser(object):
                     False,
                     True)
 
-            print 'rs_id',rs_id
+            # print 'rs_id',rs_id
             rs_ids.write(rs_id + '\n')
             rs_ids.flush()
         rs_ids.close()
@@ -583,6 +870,7 @@ class parser(object):
         }
 
         info_col = self.db.get_collection('pharmgkb.variant.ca')
+
         var_ids = set()
 
         for var_id, it in ca_readnows_info.items():
@@ -610,11 +898,69 @@ class parser(object):
 
                 for key in ['Genes','Drugs','Phenotypes','genotype','Evidence']:
 
-                    dic[key] = info.get(key,[[],])[0]
+                    dic[key] = info.get(key,[])
 
                 info_col.insert(dic)
 
                 dic.pop('_id')
+
+    def variant_info(self,rawdir):
+
+        # before insert ,truncate collection
+
+        print '+'*50
+
+        info_colname = 'pharmgkb.variant.info'
+
+        delCol('mydb_v1',info_colname)
+        
+        info_col = self.db.get_collection(info_colname)
+
+        info_col.insert({'dataVersion':today,'dataDate':self.date,'colCreated':today,'file':'web.overview'})
+        #-----------------------------------------------------------------------------------------------------------------------------------------------
+        # get all var_ids from ca
+        ca_col = self.db.get_collection('pharmgkb.variant.ca')
+        
+        docs = ca_col.find({}).skip(1)
+
+        overview_links = dict()
+
+        n = 1
+
+        for doc in docs:
+
+            var_id = doc.get('pharmgkb_VariantID')
+           
+            overview_links[var_id] = 'https://www.pharmgkb.org/variant/{}/overview'.format(var_id)
+
+        #-----------------------------------------------------------------------------------------------------------------------------------------------
+        # crawer all overview infos from web
+        # self.getOverview(overview_links,rawdir)
+        #-----------------------------------------------------------------------------------------------------------------------------------------------
+        # parser all html info
+
+        n = 0
+
+        for index,filename in enumerate(listdir(rawdir)):
+
+
+            if filename.startswith('Overview'):
+                n += 1
+                print n,filename
+
+                htmlfilepath = pjoin(rawdir,filename)
+
+                web = open(htmlfilepath).read()
+
+                aset = self.view(web)
+          
+                if aset:
+
+                    var_id = filename.split('Overview_')[1].split('.html')[0].strip()
+                    
+                    aset['variant_link'] = 'https://www.pharmgkb.org/variant/{}/overview'.format(var_id)
+
+                    info_col.insert(aset)
 
 class dbMap(object):
 
@@ -636,7 +982,6 @@ class dbFilter(object):
 
         pass
 
-
 def main():
 
     modelhelp = 'help document'
@@ -648,15 +993,18 @@ def main():
 if __name__ == '__main__':
     main()
 
-    (filepaths,date) = downloadData(redownload=True)
+    # (filepaths,date) = downloadData(redownload=True)
     #---------------------------------------------------------------------------------------------------------------------------------------
 
-    # rawdir = '/home/user/project/dbproject/mydb_v1/pharmgkb_variant/dataraw/variants_180205132245'
-    # filepaths = [pjoin(rawdir,filename) for filename in listdir(rawdir)]
-    # date = '180205132245'
+    rawdir = '/home/user/project/dbproject/mydb_v1/pharmgkb_variant/dataraw/variants_180205132245'
+    filepaths = [pjoin(rawdir,filename) for filename in listdir(rawdir)]
+    date = '180205132245'
     extractData(filepaths,date)
     # ---------------------------------------------------------------------------------------------------------------------------------------
     # man = parser(today)
     #---------------------------------------------------------------------------------------------------------------------------------------
     # man.getRead(ca_readnows)
     # man.login()
+    # man.variant_info(rawdir)
+    # aset = man.view()
+

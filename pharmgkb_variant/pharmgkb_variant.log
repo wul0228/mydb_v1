@@ -1,0 +1,16 @@
+{
+        "pharmgkb_variant": [
+                [
+                        "180205173348", 
+                        "180205173348", 
+                        "pharmgkb_variant.py"
+                ]
+        ], 
+        "RsMergeArch.bcp.gz": [
+                [
+                        "21320170313205820", 
+                        "180205173348", 
+                        "pharmgkb_variant.py"
+                ]
+        ]
+}
