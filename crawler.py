@@ -7,7 +7,7 @@
 '''
 this model is set to generate standard doc file for sub model 
 '''
-import os
+import os,re
 import json
 from config import *
 from share import *
@@ -42,7 +42,7 @@ class crawler(object):
 
     def kegg_des(self,kegg_html,path_names):
 
-        kegg_des_tsv = pjoin('./','_crawer','kegg_path_des')
+        kegg_des_tsv = pjoin('./','_crawer','kegg_path_des1')
 
         kegg_path_des = open(kegg_des_tsv,'w')
 
@@ -62,7 +62,7 @@ class crawler(object):
 
             if des_tag:
 
-                des_con = des_tag.findNext(name='td').text.strip().encode('utf-8')
+                des_con = des_tag.findNext(name='td').text.strip().replace('\n',' ').encode('utf-8')
 
             else:
                 des_con = 'None'
@@ -118,7 +118,7 @@ class crawler(object):
                 path_names[path_id] = path_name
         # #---------------------------------------------------------------------------------------------------
 
-        # kegg_html = pjoin('./','_crawer','kegg_path_html')
+        kegg_html = pjoin('./','_crawer','kegg_path_html')
 
         # createDir(kegg_html)
 
@@ -126,9 +126,9 @@ class crawler(object):
 
         # multiProcess(func,path_links.values(),size=50)
 
-        # self.kegg_des(kegg_html,path_names)
+        self.kegg_des(kegg_html,path_names)
         # #------------------------------------------------------------------------------------------------
-        kegg_map = pjoin('./','_crawer','kegg_path_map')
+        # kegg_map = pjoin('./','_crawer','kegg_path_map')
 
         # createDir(kegg_map)
 
@@ -138,19 +138,19 @@ class crawler(object):
         
         #----------------------------------------------------------------------------------------------
         # change name
-        for filename in listdir(kegg_map):
+        # for filename in listdir(kegg_map):
 
-            filepath = pjoin(kegg_map,filename)
+        #     filepath = pjoin(kegg_map,filename)
 
-            path_id = filename.split('.png',1)[0].split('_')[0].strip()
+        #     path_id = filename.split('.png',1)[0].split('_')[0].strip()
 
-            path_name = path_names.get(path_id,'noname').replace(' ','_').replace('/','&')
+        #     path_name = path_names.get(path_id,'noname').replace(' ','_').replace('/','&')
 
-            newname = '{}_{}.png'.format(path_id,path_name)
+        #     newname = '{}_{}.png'.format(path_id,path_name)
 
-            newpath = pjoin(kegg_map,newname)
+        #     newpath = pjoin(kegg_map,newname)
 
-            os.rename(filepath,newpath)
+        #     os.rename(filepath,newpath)
 
     def wiki_web(self,link,rawdir):
 
@@ -291,6 +291,11 @@ class crawler(object):
 
             if path_id and path_name:
                 path_names[path_id] = path_name
+
+            if not path_link:
+                print '===',path_id
+
+        print len(path_links)
        #---------------------------------------------------------------------------------------------------
        # get description
 
@@ -306,25 +311,18 @@ class crawler(object):
 
         #----------------------------------------------------------------------------------------------
         #get svg
-        self.wiki_png(path_links,path_names)
+        # self.wiki_png(path_links,path_names)
 
-    def reactom_png(self,path_images,path_names):
+    def reactome_png(self,path_images,path_names):
 
         #-----------------------------------------------------------------------------------------------------
-        reactom_map = pjoin('./','_crawer','reactom_path_map')
+        reactome_map = pjoin('./','_crawer','reactome_path_map')
 
-        createDir(reactom_map)
-
-        # still = True
-
-        # while still:
-
-        # try:
-            # havedown = [filename.split('_')[0].strip() for filename in listdir(reactom_map)]
+        createDir(reactome_map)
             
         options = webdriver.ChromeOptions()
 
-        prefs = {'profile.default_content_settings.popups':0,'download.default_directory':reactom_map}
+        prefs = {'profile.default_content_settings.popups':0,'download.default_directory':reactome_map}
 
         options.add_experimental_option('prefs',prefs)
 
@@ -340,17 +338,19 @@ class crawler(object):
 
                 for path_id,link in path_images.items():
 
+                    path_images.pop(path_id)
+
                     print path_id,link
-              
+                    
                     driver.get(link)
 
-                    sleep(30)
+                    sleep(20)
 
                     select = driver.find_element_by_class_name('GMN4JDYAK')
 
                     select.click()
 
-                    sleep(5)
+                    sleep(3)
 
                     buttons = driver.find_elements_by_tag_name('button')
 
@@ -360,18 +360,18 @@ class crawler(object):
 
                     svg_b.click()
 
-                    sleep(5)
+                    sleep(1)
 
                     svg_save = driver.find_element_by_class_name('GMN4JDYLO')
                     svg_save.click()
 
-                    path_images.pop(path_id)
+                    
 
                 still = False
-
-            except Exception,e:
+            except:
                 n =  n-1
 
+            print 'n',n
         #--------------------------------------------------------------------------------------------------------------------
         # change name
 
@@ -389,30 +389,34 @@ class crawler(object):
 
         #     os.rename(filepath,newpath)
 
-    def reactom_des(self,path_sums,path_names):
+    def reactome_des(self,path_sums,path_names):
 
-        reactom_des_tsv = pjoin('./','_crawer','reactom_path_des')
+        import re
 
-        reactom_path_des = open(reactom_des_tsv,'w')
+        reactome_des_tsv = pjoin('./','_crawer','reactome_path_des1')
+
+        reactome_path_des = open(reactome_des_tsv,'w')
 
         for path_id,path_sum in path_sums.items():
 
-            for s in ['i','b','br','p','P','sub','li','ul','sup','font','font color=red','BR','I','ol','p align=center','br ']:
-                path_sum = path_sum.replace('<{}>'.format(s),' ').replace('</{}>'.format(s),' ')
+            path_sum = re.sub('<.{1,5}>',' ',path_sum)
+
+            # for s in ['i','b','br','p','P','sub','li','ul','sup','font','font color=red','BR','I','ol','p align=center','br ']:
+            #     path_sum = path_sum.replace('<{}>'.format(s),' ').replace('</{}>'.format(s),' ')
 
             path_id = path_id.encode('utf-8')
-            path_name = path_name.encode('utf-8')
-            path_sum = path_sum.encode('utf-8')
+            path_name = path_names.get(path_id).encode('utf-8')
+            path_sum = path_sum.replace('\n',' ').encode('utf-8')
 
-            reactom_path_des.write(path_id + '\t' + path_name+ '\t' + path_sum + '\n')
+            reactome_path_des.write(path_id + '\t' + path_name+ '\t' + path_sum + '\n')
 
-        reactom_path_des.close()
+        reactome_path_des.close()
 
-    def reactom(self):
+    def reactome(self):
         #----------------------------------------------------------------------------------------------
-        reactom_pathway_info = self.db.get_collection('reactom.pathway.info')
+        reactome_pathway_info = self.db.get_collection('reactom.pathway.info')
 
-        docs = reactom_pathway_info.find({})
+        docs = reactome_pathway_info.find({})
 
         path_links = dict()
         path_names = dict()
@@ -442,72 +446,123 @@ class crawler(object):
 
         #--------------------------------------------------------------------------------------------------------------------------------------------
         # get des
-        # self.reactom_des(path_sums,path_names)
+        # self.reactome_des(path_sums,path_names)
         #--------------------------------------------------------------------------------------------------------------------------------------------------
+        print len(path_images)
+
+        rawdir = '/home/user/project/dbproject/mydb_v1/_crawer/reactome_path_map/'
+
+        havedown = [filename.split('.png')[0].strip() for filename in listdir(rawdir)]
+
+        for path_id,link in path_images.items():
+            if path_id in havedown:
+                path_images.pop(path_id)
+
+        print len(path_images)
+
         # get path image
-        self.reactom_png(path_images,path_names,ip,port)
+        self.reactome_png(path_images,path_names)
 
-    def humancyc_web(self,link,rawdir,ip,port):
+    def humancyc_html(self,ip_infos):
 
-        # try:
+        print 'all_ips',len(ip_infos)
+
+        effect_ip = list()
+
+        n = 0
+
+        for _ip,_port in ip_infos:
+
+            print _ip,_port
+
+            proxies = { "http": "http://{}:{}".format(_ip,_port)}
+
+            try:
+                # web = requests.get("http://www.kegg.jp/",verify=False)
+                # web = requests.get("https://www.baidu.com/",proxies=proxies,verify=False)
+                # web = requests.get("http://www.kegg.jp/",proxies=proxies,verify=False)
+                web = requests.get("https://humancyc.org/HUMAN/class-instances?object=Pathways",proxies=proxies,verify=False)
+                # web = requests.get("https://humancyc.org/HUMAN/class-instances?object=Pathways",headers=headers,verify=False)
+            except Exception,e:
+                print '='*50
+                print e
+                print '='*50
+                continue
+
+            soup = bs(web.content,'lxml')
+
+            n += 1
+            if soup.find(text='You have exceeded your monthly access limit.'):
+                print 'forbiddend !' 
+            else:
+                # with open('./huamncyc_html','w') as wf:
+                with open('./kegg.html','w') as wf:
+                    wf.write(soup.prettify().encode('utf-8'))
+                break
+
+            print '-'*50
+
+    def humancyc_web(self,links,ip,port):
+
+        humancyc_html = pjoin('./','_crawer','humancyc_path_html_driver')
+
+        createDir(humancyc_html)
+
+        havedown = [filename.split('.html')[0].strip() for filename in listdir(humancyc_html)]
+
+        print 'havedown',len(havedown)
+
         options = webdriver.ChromeOptions()
 
-        prefs = {'profile.default_content_settings.popups':0,'download.default_directory':rawdir}
+        prefs = {'profile.default_content_settings.popups':0,'download.default_directory':humancyc_html}
 
         options.add_experimental_option('prefs',prefs)
 
         options.add_argument('--proxy-server=http://{}:{}'.format(ip,port))
 
+        options.add_experimental_option("excludeSwitches", ["ignore-certificate-errors"])
+
         driver = webdriver.Chrome(chrome_options=options)
 
-        driver.get('https://www.baidu.com/')
+        m = 0
 
-        # return True
+        # still = True
 
-        # except:
+        # while  still:
 
-        #     return False
+            # try:
 
-        # finally:
-        #     driver.close()
-        
-        n = 0
+        for path_id,link in links.items():
 
-        still = True
+            m += 1
+            if path_id  in havedown:
+                continue
 
-        while still:
+            print m,path_id,link
+
+            driver.get(link)
 
             try:
-                for path_id,link in links.items():
+                elements = WebDriverWait(driver,50,0.5).until(EC.presence_of_all_elements_located((By.CLASS_NAME,'ecocomment')))
 
-                    n += 1
+            finally:
 
-                    print n,path_id,link
+                web = driver.page_source
 
-                    driver.get(link)
+                soup = bs(web,'lxml')
 
-                    try:
-                        elements = WebDriverWait(driver,30,0.5).until(EC.presence_of_all_elements_located((By.CLASS_NAME,'ecocomment')))
+                html_savepath = pjoin(rawdir,'{}.html'.format(path_id))
 
-                    finally:
+                with open(html_savepath,'w') as wf:
 
-                        web = driver.page_source
+                    wf.write(soup.prettify().encode('utf-8'))
 
-                        soup = bs(web,'lxml')
+                links.pop(path_id)
 
-                        html_savepath = pjoin(rawdir,'{}.html'.format(path_id))
+                # still = False
+            # except:
+                # pass
 
-                        with open(html_savepath,'w') as wf:
-
-                            wf.write(soup.prettify().encode('utf-8'))
-
-                        # links.pop(path_id)
-
-                        still = False
-
-            except:
-
-                pass
     def humancyc_png(self,path_id,path_name,link,rawdir):
 
         savename = '{}_{}.gif'.format(path_id,path_name)
@@ -521,10 +576,9 @@ class crawler(object):
     def humancyc(self):
 
         # url = 'https://humancyc.org/HUMAN/class-instances?object=Pathways'
-
         # web_page = requests.get(url,headers=headers,verify=False)
 
-        web_page = open('/home/user/project/dbproject/mydb_v1/humancyc_pathways.html').read()
+        web_page = open('./_crawer/humancyc_pathways.html').read()
 
         soup = bs(web_page,'lxml')
 
@@ -554,45 +608,18 @@ class crawler(object):
         print 'path_links',len(path_links)
         print 'path_names',len(path_names)
         print 'path_images',len(path_images)
+
+        return path_links
         # #----------------------------------------------------------------------------------------------------------------
         # get web  page
 
-        humancyc_html = pjoin('./','_crawer','humancyc_path_html_driver')
+         # self.humancyc_web(path_links,humancyc_html,_ip,_port)
 
-        createDir(humancyc_html)
 
-        # useip = dict()
-
-        # ip_port = json.load(open('./ip_port.json')).get('msg')
-
-        # for i in ip_port:
-        #     _ip = i.get('ip')
-        #     _port = i.get('port')
-
-        _ip = '183.232.188.82'
-        _port = '8080'
-        test = self.humancyc_web(path_links,humancyc_html,_ip,_port)
-
-        #     print _ip,_port,test
-        #     if test:
-        #         useip[_ip] = _port
-
-        # with open('./useful_ip_port.json','w') as wf:
-        #     json.dump(useip,wf,indent=8)
-        # #---------------------------------------------------------------------------------------------------------------
-        # humancyc_map = pjoin('./','_crawer','humancyc_path_map')
-
-        # createDir(humancyc_map)
-
-        # for path_id,path_image in path_images.items():
-
-        #     path_name = path_names.get(path_id,'noname')
-
-        #     self.humancyc_png(path_id,path_name,path_image,humancyc_map)
 
     def netpath_web(self,path_id,path_name,link,rawdir):
-
         pass
+
     def netpath_png(self):
 
         netpath_map = pjoin('./','_crawer','netpath_path_map')
@@ -742,7 +769,7 @@ class crawler(object):
 
             # self.netpath_web(path_id,path_name,link,netpathc_html)
 
-    def pather_web(self,link,rawdir):
+    def panther_web(self,link,rawdir):
 
         path_id = link.rsplit('clsAccession=',1)[1].strip()
 
@@ -754,19 +781,19 @@ class crawler(object):
 
         os.popen(command)
 
-    def pather_des(self,pather_html,path_names):
+    def panther_des(self,panther_html,path_names):
 
-        pather_des_tsv = pjoin('./','_crawer','pather_path_des')
+        panther_des_tsv = pjoin('./','_crawer','panther_path_des')
 
-        pather_path_des = open(pather_des_tsv,'w')
+        panther_path_des = open(panther_des_tsv,'w')
 
         n = 0
 
-        for filename in listdir(pather_html):
+        for filename in listdir(panther_html):
 
             path_id =filename.split('.html')[0].strip()
 
-            filepath = pjoin(pather_html,filename)
+            filepath = pjoin(panther_html,filename)
 
             path_html = open(filepath).read()
 
@@ -783,13 +810,13 @@ class crawler(object):
             if not des_con:
                 des_con = 'None'
 
-            pather_path_des.write(path_id + '\t' + path_name+ '\t' +  des_con + '\n')
+            panther_path_des.write(path_id + '\t' + path_name+ '\t' +  des_con + '\n')
 
             n += 1
 
             print n,path_id, des_con
 
-    def pather_png(self,path_id,path_name,link,rawdir):
+    def panther_png(self,path_id,path_name,link,rawdir):
 
         savename = '{}_{}.png'.format(path_id.path_name)
 
@@ -799,10 +826,10 @@ class crawler(object):
 
         os.popen(command)
 
-    def pather(self):
+    def panther(self):
 
         # get  all pathid2link
-        tsvfile = open('./pather.tsv')
+        tsvfile = open('./panther.tsv')
 
         path_links = dict()
 
@@ -826,9 +853,9 @@ class crawler(object):
             path_names[path_id] = path_name
         # #----------------------------------------------------------------------
         # get path map
-        pather_map = pjoin('./','_crawer','pather_path_map')
+        panther_map = pjoin('./','_crawer','panther_path_map')
 
-        createDir(pather_map)
+        createDir(panther_map)
 
         path_images = dict()
 
@@ -856,7 +883,7 @@ class crawler(object):
 
                 path_name = path_names.get(path_id)
 
-                self.pather_png(path_id,path_name,pathway_href,pather_map)
+                self.panther_png(path_id,path_name,pathway_href,panther_map)
 
             des = driver.find_element_by_link_text('Pathway Description')
             
@@ -865,26 +892,26 @@ class crawler(object):
             path_defs[path_id] = des_href
         # #----------------------------------------------------------------------------------------------
         # get description html 
-        # path_defs = open('/home/user/project/dbproject/mydb_v1/_crawer/pather_des_links')
+        # path_defs = open('/home/user/project/dbproject/mydb_v1/_crawer/panther_des_links')
 
-        pather_html = pjoin('./','_crawer','pather_path_html')
+        panther_html = pjoin('./','_crawer','panther_path_html')
 
-        createDir(pather_html)
+        createDir(panther_html)
 
-        func = lambda link:self.pather_web(link,pather_html)
+        func = lambda link:self.panther_web(link,panther_html)
 
         multiProcess(func,path_defs.values(),size=30)
 
-        self.pather_des(pather_html,path_names)
+        self.panther_des(panther_html,path_names)
         #---------------------------------------------------------------------------------------------------
 
     def smpdb(self):
 
         import csv
 
-        f = open('./smpdb_pathways.csv')
+        f = open('./_crawer/smpdb_pathways.csv')
 
-        smpdb_pathways_tsv = open('./smpdb_pathways.tsv','w')
+        smpdb_pathways_tsv = open('./_crawer/smpdb_pathways.tsv','w')
 
         reads = csv.reader(f)
 
@@ -898,16 +925,256 @@ class crawler(object):
         
             n += 1
 
+    def countPng(self):
+
+        allmap_tsv = open('./_crawer/allpath_map.tsv','w') 
+
+        f = open('./_crawer/PathwayCommons9.All.hgnc.pathway2gene.txt')
+
+        n = 0
+
+        allpath = dict()
+
+        for line in f:
+
+            data = line.split('\t')
+
+            path_name = data[1].split('name:',1)[1].split('datasource',1)[0].split(';',1)[0].strip()
+
+            path_source = data[1].split('datasource:',1)[1].split(';',1)[0].strip()
+
+            path_link  = data[0]
+
+            if path_source not in allpath:
+                allpath[path_source] = dict()
+
+            if path_link not in allpath[path_source] :
+                allpath[path_source][path_link] = path_name
+
+        # print len(allpath)
+
+        with open('./_crawer/allpath1.json','w') as wf:
+            json.dump(allpath,wf,indent=8)
+
+        for sour,it in allpath.items():
+
+            if sour == 'wikipathways':
+                sour = 'wiki'
+
+            map_dir = pjoin('./_crawer/','{}_path_map'.format(sour))
+
+            print map_dir
+
+            if sour  in['kegg','panther','wiki']: 
+
+                allmap_id = [filename.split('_',1)[0].strip() for filename in listdir(map_dir)]
+
+                for link,name in it.items():
+
+                    if sour == 'kegg':
+                        path_id = psplit(link)[1].split('hsa')[1].strip()
+                    else:
+                        path_id = psplit(link)[1].strip()
+
+                    if path_id in allmap_id:
+        #                  # print path_id
+                         have = 'Yes'
+                    else:
+                        have = 'No'
+                    allmap_tsv.write(link + '\t' + sour + '\t'  + path_id + '\t' + name + '\t' +have + '\n' )
+
+            elif sour  == 'netpath':
+
+                allmap_name = [filename.split('.png',1)[0].strip() for filename in listdir(map_dir)]
+
+                for link,name in  it.items():
+
+                    if name in allmap_name:
+                        have = 'Yes'
+                    else:
+                        have = 'No'
+
+                    path_id = '-'
+
+                    allmap_tsv.write(link + '\t' +sour + '\t'  + path_id + '\t' + name + '\t' +have + '\n' )
+
+            elif sour ==  'humancyc':
+
+                allmap_name = self.humancyc()
+
+                for link, name in it.items():
+
+                    if name.strip() in allmap_name.values():
+
+                        have = 'Yes'
+                    else:
+                        have = 'No'
+
+                    path_id = '-'
+            
+                    allmap_tsv.write(link + '\t' +sour + '\t'  + path_id + '\t' + name + '\t' +have + '\n' )
+
+            elif  sour  in ['inoh','pid','reactome']:
+
+                for link, name in it.items():
+
+                    if sour == 'reactome':
+                        path_id = psplit(link)[1].strip()
+                    else:
+                        path_id = '-'
+
+                    have = 'No'
+
+                    allmap_tsv.write(link + '\t' +sour + '\t'  + path_id + '\t' + name + '\t' +have + '\n' )
+
+
+class findIP(object):
+    """docstring for findIP"""
+    def __init__(self):
+
+        super(findIP, self).__init__()
+    
+    def data5u(self):
+
+
+        urls = [
+        'http://www.data5u.com/free/index.shtml',
+        'http://www.data5u.com/free/gngn/index.shtml',
+        'http://www.data5u.com/free/gnpt/index.shtml',
+        'http://www.data5u.com/free/gwgn/index.shtml',
+        'http://www.data5u.com/free/gwpt/index.shtml'
+        ]
+
+        ip_infos = list()
+
+        for url in urls:
+
+            web = requests.get(url,headers=headers,verify=False)
+
+            # soup = bs(web,'lxml')
+            soup = bs(web.content,'lxml')
+
+            iplist = soup.find(attrs={'style':'text-align:center;'})
+
+            ips = iplist.findAll('ul')
+
+            for p in ips[1:]:
+                ip_info = tuple([text for text in p.stripped_strings][:2])
+                ip_infos.append(ip_info)
+
+        return ip_infos
+
+    def superfaset(self):
+
+        url = 'http://www.superfastip.com/'
+
+        web = requests.get(url,headers=headers,verify=False)
+
+        soup = bs(web.content,'lxml')
+
+        iplist = soup.find(attrs={'id':'iptable11'})
+
+        trs = iplist.findAll('tr')
+
+        ip_infos = list()
+
+        for tr in trs[1:]:
+
+            ip_info = [text for text in tr.stripped_strings][2:4]
+
+            ip_infos.append(tuple(ip_info))
+    
+        return ip_infos
+
+    def mogu(self):
+
+        url  = 'http://www.mogumiao.com/web'
+
+        driver = webdriver.Chrome()
+
+        driver.get(url)
+
+        try:
+            elements = WebDriverWait(driver,10,0.5).until(EC.presence_of_all_elements_located((By.CLASS_NAME,'el-table__row')))
+        finally:
+            # web = requests.get(url,headers=headers,verify=False)
+            web = driver.page_source
+
+            soup = bs(web,'lxml')
+
+            trs = soup.findAll(attrs={'class':'el-table__row'})
+
+            ip_infos = list()
+
+            # for tr in trs[:5]:
+            for tr in trs:
+
+                ip_info = [text for text in tr.stripped_strings][:2]
+
+                ip_infos.append(tuple(ip_info))
+
+                print ip_info
+
+            driver.close()
+
+            return ip_infos
+
+    def get(self):
+
+        man = crawler(today)
+
+        agent = 'http://api.xdaili.cn/xdaili-api//privateProxy/getDynamicIP/DD20182127891Ya29Q3/acbcbe34c5d911e7bcaf7cd30abda612?returnType=2'
+        web = requests.get(agent)
+
+        print web.content
+
+        info =  eval(web.content )
+
+        _ip = info.get('RESULT').get('wanIp')
+
+        _port  = info.get('RESULT').get('proxyport')
+
+        print '_ip,_port',_ip,_port
+
+        path_links = man.humancyc()
+
+        man.humancyc_web(path_links,_ip,_port)
+
 def main():
-    man = crawler(today)
+
+    man = findIP()
+    man.get()
+    # pass
     # man.kegg()
     # man.wiki()
-    # man.reactom()
-    man.humancyc()
+    # man.reactome()
+    # man.humancyc()
     # man.netpath()
     # man.netpath_png()
-    # man.pather()
+    # man.panther()
     # man.smpdb()
+    # man.countPng()
+    # man = findIP()
+    # ip_infos1= man.data5u()
+    # ip_infos2 = man.superfaset()
+    # ip_infos3 = man.mogu()
+
+    # ip_infos3 =  [('117.28.144.145','29261'),]
+
+    # agent3 = 'http://api.xdaili.cn/xdaili-api//privateProxy/getDynamicIP/DD20182127891Ya29Q3/5deabaf620e611e79ff07cd30abda612?returnType=2'
+    # agent2= 'http://api.xdaili.cn/xdaili-api//privateProxy/getDynamicIP/DD20182127891Ya29Q3/f77ddfbf108111e79ff07cd30abda612?returnType=2'
+    # #120.40.134.240 45327 
+    # #27.153.128.89 49232
+    # agent4='http://api.xdaili.cn/xdaili-api//privateProxy/getDynamicIP/DD20182127891Ya29Q3/acbff77ec5d911e7bcaf7cd30abda612?returnType=2'
+    # agent1 = 'http://api.xdaili.cn/xdaili-api//privateProxy/getDynamicIP/DD20182127891Ya29Q3/acbbc7f5c5d911e7bcaf7cd30abda612?returnType=2'
+    
+
+    
+
+#         # func = lambda x: man.humancyc_web(links,_ip,_port)
+#         # multiProcess(func,remain,size=10)
 
 if __name__ == '__main__':
     main()
+    # pass
+ 
