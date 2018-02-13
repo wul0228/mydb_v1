@@ -109,6 +109,13 @@ def extractData(filepaths,date):
     date -- the date of  data download
     '''
     # 1. distribute filepaths for parser
+
+    # filter_path = lambda x:psplit(x[0])[1].strip().startswith(x[1])
+    # path_head = lambda x,y:map(lambda x0:(x0,y),x)
+    # gene_info_paths =map(lambda x:x[0],filter(filter_path,path_head(filepaths,'gene_info')))
+    # path_head = lambda x,y:dict.fromkeys(x,y).items()
+    # gene_info_paths = map(lambda x:x[0],filter(filter_path,path_head(filepaths,'gene_info')))
+
     gene_info_paths = [path for path in filepaths if psplit(path)[1].strip().startswith('gene_info')]
     gene_group_paths = [path for path in filepaths if psplit(path)[1].strip().startswith('gene_group')]
     gene_neighbors_paths = [path for path in filepaths if psplit(path)[1].strip().startswith('gene_neighbors')]
@@ -986,6 +993,3 @@ def main():
         
 if __name__ == '__main__':
     main()
-
-
-
