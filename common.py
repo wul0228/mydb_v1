@@ -87,9 +87,45 @@ class doc(object):
                     readme.write('\t'*2 + val +'\n'*2)
                 readme.write('\n' )
 
+class query(object):
 
+        """docstring for query"""
+        def __init__(self):
 
-         
+            super(query, self).__init__()
+            
+            conn = MongoClient('localhost',27017)
+
+            db  = conn.get_database('mydb_v1')
+
+            topic = conn.get_database('mytopic_v1')
+
+            self.db = db
+
+            self.topic = topic
+
+        def go_gene(self):
+
+            # find @20180212 for  wang li bo
+            GO_GENE_Result = open('./_result/GO_GENE_RESULT_20180212.tsv','w')
+
+            go_ids_txt = '0010569 0000724 2000780 2000781 0006302 1990918 2000042 2000779'
+
+            go_ids =  ['GO:'  + i.strip() for i in go_ids_txt.split(' ')]
+
+            go_geanno =  self.db.get_collection('go.geneanno')
+
+            for i in go_ids:
+
+                docs= go_geanno.find({'GO ID':i})
+                
+                for doc in docs:
+
+                    gene_id = doc.get('DB_Object_ID')
+
+                    gene_db = doc.get('DB')
+
+                    GO_GENE_Result.write(i +'\t' +'GeneID:' + gene_id +'\t' + 'GeneDB:'  + gene_db  + '\n')
 
 def scpPy():
 
@@ -148,7 +184,7 @@ def main():
     # man.dbDoc()
     # scpPy()
     gitPush()
-
-
+    #man = query()
+    #man.go_gene()
 if __name__ == '__main__':
     main()
